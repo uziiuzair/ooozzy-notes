@@ -19,10 +19,24 @@ export function AIDebugger() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 left-4 px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-full shadow-lg hover:bg-blue-600 transition-colors z-50"
+        className="fixed bottom-3 right-32 flex items-center gap-3 h-[50px] -translate-x-2 py-3.5 px-6 bg-slate-200 border border-slate-400 text-slate-600 text-sm font-medium rounded-full z-50"
         aria-label="Open AI Debugger"
       >
-        🤖 AI Logs ({logs.length})
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className="size-6"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.157 2.148.279 3.238.364.466.037.893.281 1.153.671L12 21l2.652-3.978c.26-.39.687-.634 1.153-.67 1.09-.086 2.17-.208 3.238-.365 1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"
+          />
+        </svg>
+        {logs.length}
       </button>
     );
   }
@@ -33,9 +47,7 @@ export function AIDebugger() {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-gray-900">
-              🤖 AI Debugger
-            </h2>
+            <h2 className="text-xl font-bold text-gray-900">🤖 AI Debugger</h2>
             <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
               {logs.length} logs
             </span>
@@ -63,9 +75,7 @@ export function AIDebugger() {
             {logs.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 <p className="text-sm">No AI logs yet</p>
-                <p className="text-xs mt-2">
-                  AI interactions will appear here
-                </p>
+                <p className="text-xs mt-2">AI interactions will appear here</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -75,19 +85,26 @@ export function AIDebugger() {
                     onClick={() => setSelectedLog(log)}
                     className={cn(
                       "w-full text-left p-3 hover:bg-gray-50 transition-colors",
-                      selectedLog?.id === log.id && "bg-blue-50 border-l-4 border-blue-500"
+                      selectedLog?.id === log.id &&
+                        "bg-blue-50 border-l-4 border-blue-500"
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={cn(
-                            "px-2 py-0.5 text-xs font-medium rounded",
-                            log.type === "classification" && "bg-purple-100 text-purple-700",
-                            log.type === "chat" && "bg-green-100 text-green-700",
-                            log.type === "embedding" && "bg-yellow-100 text-yellow-700",
-                            log.type === "other" && "bg-gray-100 text-gray-700"
-                          )}>
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 text-xs font-medium rounded",
+                              log.type === "classification" &&
+                                "bg-purple-100 text-purple-700",
+                              log.type === "chat" &&
+                                "bg-green-100 text-green-700",
+                              log.type === "embedding" &&
+                                "bg-yellow-100 text-yellow-700",
+                              log.type === "other" &&
+                                "bg-gray-100 text-gray-700"
+                            )}
+                          >
                             {log.type}
                           </span>
                           {log.error && (
@@ -122,13 +139,19 @@ export function AIDebugger() {
                 {/* Header */}
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className={cn(
-                      "px-2 py-1 text-xs font-medium rounded",
-                      selectedLog.type === "classification" && "bg-purple-100 text-purple-700",
-                      selectedLog.type === "chat" && "bg-green-100 text-green-700",
-                      selectedLog.type === "embedding" && "bg-yellow-100 text-yellow-700",
-                      selectedLog.type === "other" && "bg-gray-100 text-gray-700"
-                    )}>
+                    <span
+                      className={cn(
+                        "px-2 py-1 text-xs font-medium rounded",
+                        selectedLog.type === "classification" &&
+                          "bg-purple-100 text-purple-700",
+                        selectedLog.type === "chat" &&
+                          "bg-green-100 text-green-700",
+                        selectedLog.type === "embedding" &&
+                          "bg-yellow-100 text-yellow-700",
+                        selectedLog.type === "other" &&
+                          "bg-gray-100 text-gray-700"
+                      )}
+                    >
                       {selectedLog.type}
                     </span>
                     {selectedLog.duration && (
@@ -146,16 +169,17 @@ export function AIDebugger() {
                 </div>
 
                 {/* Metadata */}
-                {selectedLog.metadata && Object.keys(selectedLog.metadata).length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                      Metadata
-                    </h4>
-                    <pre className="bg-gray-50 rounded-lg p-3 text-xs overflow-x-auto">
-                      {JSON.stringify(selectedLog.metadata, null, 2)}
-                    </pre>
-                  </div>
-                )}
+                {selectedLog.metadata &&
+                  Object.keys(selectedLog.metadata).length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                        Metadata
+                      </h4>
+                      <pre className="bg-gray-50 rounded-lg p-3 text-xs overflow-x-auto">
+                        {JSON.stringify(selectedLog.metadata, null, 2)}
+                      </pre>
+                    </div>
+                  )}
 
                 {/* Prompt */}
                 <div>
