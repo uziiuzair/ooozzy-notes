@@ -1,0 +1,530 @@
+{
+  "schemaVersion": "1.0.0",
+  "lastUpdated": "2025-01-30",
+  "database": {
+    "type": "Hybrid (LocalStorage current, Supabase planned)",
+    "collections": {
+      "notes": {
+        "description": "Text notes with markdown or rich text content",
+        "storage": "LocalStorage (current) → Supabase (future)",
+        "key": "ooozzy_notes",
+        "fields": {
+          "id": {
+            "type": "string",
+            "required": true,
+            "description": "UUID generated with crypto.randomUUID()",
+            "primaryKey": true,
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "folderId": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Reference to folder.id if note is in a folder",
+            "foreignKey": "folders.id",
+            "example": "660e8400-e29b-41d4-a716-446655440001"
+          },
+          "title": {
+            "type": "string",
+            "required": true,
+            "description": "Note title (defaults to 'Untitled')",
+            "maxLength": 200,
+            "example": "Meeting Notes - Q1 Planning"
+          },
+          "content": {
+            "type": "string",
+            "required": true,
+            "description": "Note content (markdown string or rich text HTML)",
+            "example": "# Agenda\n- Review Q1 goals\n- Discuss budget"
+          },
+          "contentType": {
+            "type": "string",
+            "required": true,
+            "description": "Content format type",
+            "enum": ["markdown", "richtext"],
+            "default": "markdown",
+            "example": "markdown"
+          },
+          "tags": {
+            "type": "string[]",
+            "required": true,
+            "description": "Array of tag strings for categorization",
+            "default": [],
+            "example": ["work", "planning", "q1"]
+          },
+          "isPinned": {
+            "type": "boolean | undefined",
+            "required": false,
+            "description": "Whether note is pinned to top of list",
+            "default": false,
+            "example": true
+          },
+          "createdAt": {
+            "type": "string",
+            "required": true,
+            "description": "ISO 8601 timestamp of creation",
+            "format": "date-time",
+            "example": "2025-01-30T10:30:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "required": true,
+            "description": "ISO 8601 timestamp of last update",
+            "format": "date-time",
+            "example": "2025-01-30T14:25:00.000Z"
+          }
+        },
+        "indexes": [],
+        "relationships": {
+          "belongsTo": {
+            "folders": {
+              "foreignKey": "folderId",
+              "description": "Note belongs to one folder (optional)"
+            }
+          }
+        },
+        "futureFields": {
+          "user_id": {
+            "type": "UUID",
+            "description": "Reference to users.id (Supabase)",
+            "required": true
+          },
+          "is_public": {
+            "type": "boolean",
+            "description": "Whether note has public share link",
+            "default": false
+          },
+          "slug": {
+            "type": "string",
+            "description": "URL-friendly slug for public sharing",
+            "unique": true
+          },
+          "cover_asset_id": {
+            "type": "UUID",
+            "description": "Reference to assets.id for cover image",
+            "required": false
+          }
+        }
+      },
+      "folders": {
+        "description": "Folders for organizing notes, photos, and links",
+        "storage": "LocalStorage (current) → Supabase (future)",
+        "key": "ooozzy_folders",
+        "fields": {
+          "id": {
+            "type": "string",
+            "required": true,
+            "description": "UUID generated with crypto.randomUUID()",
+            "primaryKey": true,
+            "example": "770e8400-e29b-41d4-a716-446655440002"
+          },
+          "name": {
+            "type": "string",
+            "required": true,
+            "description": "Folder name (must be unique per user)",
+            "maxLength": 50,
+            "example": "Work Notes"
+          },
+          "color": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Hex color code for folder badge",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "example": "#7240fe"
+          },
+          "icon": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Emoji or icon name for folder display",
+            "example": "📁"
+          },
+          "createdAt": {
+            "type": "string",
+            "required": true,
+            "description": "ISO 8601 timestamp of creation",
+            "format": "date-time",
+            "example": "2025-01-20T09:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "required": true,
+            "description": "ISO 8601 timestamp of last update",
+            "format": "date-time",
+            "example": "2025-01-25T16:30:00.000Z"
+          }
+        },
+        "indexes": [],
+        "relationships": {
+          "hasMany": {
+            "notes": {
+              "foreignKey": "folderId",
+              "description": "Folder contains many notes"
+            },
+            "photos": {
+              "foreignKey": "folderId",
+              "description": "Folder contains many photos"
+            },
+            "links": {
+              "foreignKey": "folderId",
+              "description": "Folder contains many links"
+            }
+          }
+        },
+        "futureFields": {
+          "user_id": {
+            "type": "UUID",
+            "description": "Reference to users.id (Supabase)",
+            "required": true
+          },
+          "is_private": {
+            "type": "boolean",
+            "description": "Whether folder is password-protected (paid feature)",
+            "default": false
+          }
+        }
+      },
+      "photos": {
+        "description": "Photo uploads with captions and tags",
+        "storage": "LocalStorage (current) → Supabase Storage (future)",
+        "key": "ooozzy_photos",
+        "fields": {
+          "id": {
+            "type": "string",
+            "required": true,
+            "description": "UUID generated with crypto.randomUUID()",
+            "primaryKey": true,
+            "example": "880e8400-e29b-41d4-a716-446655440003"
+          },
+          "folderId": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Reference to folder.id if photo is in a folder",
+            "foreignKey": "folders.id",
+            "example": "770e8400-e29b-41d4-a716-446655440002"
+          },
+          "title": {
+            "type": "string",
+            "required": true,
+            "description": "Photo title or filename",
+            "example": "Sunset at the beach.jpg"
+          },
+          "url": {
+            "type": "string",
+            "required": true,
+            "description": "Base64 data URL (current) or Supabase Storage URL (future)",
+            "example": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+          },
+          "thumbnailUrl": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Thumbnail URL for performance optimization",
+            "example": "data:image/jpeg;base64,/9j/4AAQSkZJRg... (smaller)"
+          },
+          "caption": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "User-provided caption for the photo",
+            "maxLength": 500,
+            "example": "Beautiful sunset from our vacation in Hawaii"
+          },
+          "tags": {
+            "type": "string[]",
+            "required": true,
+            "description": "Array of tag strings for categorization",
+            "default": [],
+            "example": ["vacation", "hawaii", "sunset", "2025"]
+          },
+          "isPinned": {
+            "type": "boolean | undefined",
+            "required": false,
+            "description": "Whether photo is pinned to top of grid",
+            "default": false,
+            "example": false
+          },
+          "width": {
+            "type": "number | undefined",
+            "required": false,
+            "description": "Original image width in pixels",
+            "example": 1920
+          },
+          "height": {
+            "type": "number | undefined",
+            "required": false,
+            "description": "Original image height in pixels",
+            "example": 1080
+          },
+          "size": {
+            "type": "number | undefined",
+            "required": false,
+            "description": "File size in bytes",
+            "example": 2457600
+          },
+          "mimeType": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Image MIME type",
+            "enum": ["image/jpeg", "image/png", "image/gif", "image/webp"],
+            "example": "image/jpeg"
+          },
+          "createdAt": {
+            "type": "string",
+            "required": true,
+            "description": "ISO 8601 timestamp of upload",
+            "format": "date-time",
+            "example": "2025-01-25T14:20:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "required": true,
+            "description": "ISO 8601 timestamp of last update",
+            "format": "date-time",
+            "example": "2025-01-26T09:15:00.000Z"
+          }
+        },
+        "indexes": [],
+        "relationships": {
+          "belongsTo": {
+            "folders": {
+              "foreignKey": "folderId",
+              "description": "Photo belongs to one folder (optional)"
+            }
+          }
+        },
+        "futureFields": {
+          "user_id": {
+            "type": "UUID",
+            "description": "Reference to users.id (Supabase)",
+            "required": true
+          }
+        }
+      },
+      "links": {
+        "description": "Web links with metadata (OpenGraph)",
+        "storage": "LocalStorage (current) → Supabase (future)",
+        "key": "ooozzy_links",
+        "fields": {
+          "id": {
+            "type": "string",
+            "required": true,
+            "description": "UUID generated with crypto.randomUUID()",
+            "primaryKey": true,
+            "example": "990e8400-e29b-41d4-a716-446655440004"
+          },
+          "url": {
+            "type": "string",
+            "required": true,
+            "description": "Original URL",
+            "format": "uri",
+            "example": "https://github.com/vercel/next.js"
+          },
+          "title": {
+            "type": "string",
+            "required": true,
+            "description": "Page title (from OpenGraph or domain)",
+            "example": "Next.js by Vercel - The React Framework"
+          },
+          "description": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Page description (from OpenGraph)",
+            "maxLength": 500,
+            "example": "Used by some of the world's largest companies, Next.js..."
+          },
+          "favicon": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Favicon URL",
+            "format": "uri",
+            "example": "https://github.githubassets.com/favicons/favicon.svg"
+          },
+          "image": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "OpenGraph image URL",
+            "format": "uri",
+            "example": "https://opengraph.githubassets.com/..."
+          },
+          "domain": {
+            "type": "string",
+            "required": true,
+            "description": "Extracted domain from URL",
+            "example": "github.com"
+          },
+          "createdAt": {
+            "type": "Date",
+            "required": true,
+            "description": "Timestamp of link creation",
+            "note": "Currently Date object, will be ISO string in Supabase",
+            "example": "2025-01-24T11:45:00.000Z"
+          },
+          "updatedAt": {
+            "type": "Date",
+            "required": true,
+            "description": "Timestamp of last update",
+            "note": "Currently Date object, will be ISO string in Supabase",
+            "example": "2025-01-24T11:45:00.000Z"
+          },
+          "isPinned": {
+            "type": "boolean",
+            "required": true,
+            "description": "Whether link is pinned to top of grid",
+            "default": false,
+            "example": false
+          },
+          "folderId": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Reference to folder.id if link is in a folder",
+            "foreignKey": "folders.id",
+            "example": "770e8400-e29b-41d4-a716-446655440002"
+          }
+        },
+        "indexes": [],
+        "relationships": {
+          "belongsTo": {
+            "folders": {
+              "foreignKey": "folderId",
+              "description": "Link belongs to one folder (optional)"
+            }
+          }
+        },
+        "futureFields": {
+          "user_id": {
+            "type": "UUID",
+            "description": "Reference to users.id (Supabase)",
+            "required": true
+          },
+          "note_id": {
+            "type": "UUID",
+            "description": "Reference to notes.id if link is attached to a note",
+            "required": false
+          },
+          "site_name": {
+            "type": "string",
+            "description": "Site name from OpenGraph metadata",
+            "example": "GitHub"
+          },
+          "fetched_at": {
+            "type": "timestamptz",
+            "description": "When OpenGraph metadata was last fetched",
+            "example": "2025-01-24T11:45:30.000Z"
+          }
+        }
+      }
+    },
+    "futureTables": {
+      "users": {
+        "description": "User accounts (Supabase Auth)",
+        "fields": {
+          "id": "UUID (primary key, from Supabase Auth)",
+          "email": "TEXT (unique, not null)",
+          "plan_tier": "TEXT (free | paid)",
+          "created_at": "TIMESTAMPTZ",
+          "updated_at": "TIMESTAMPTZ"
+        }
+      },
+      "assets": {
+        "description": "File uploads (images, PDFs) stored in Supabase Storage",
+        "fields": {
+          "id": "UUID (primary key)",
+          "user_id": "UUID (foreign key to users.id)",
+          "type": "TEXT (image | pdf | etc.)",
+          "url": "TEXT (Supabase Storage URL)",
+          "width": "INTEGER (for images)",
+          "height": "INTEGER (for images)",
+          "meta": "JSONB (additional metadata)",
+          "created_at": "TIMESTAMPTZ"
+        }
+      },
+      "pins": {
+        "description": "Web pins (alternative to links table, from notes.md spec)",
+        "fields": {
+          "id": "UUID (primary key)",
+          "user_id": "UUID (foreign key to users.id)",
+          "note_id": "UUID (foreign key to notes.id, nullable)",
+          "url": "TEXT (not null)",
+          "title": "TEXT",
+          "description": "TEXT",
+          "image_url": "TEXT",
+          "favicon_url": "TEXT",
+          "site_name": "TEXT",
+          "fetched_at": "TIMESTAMPTZ",
+          "created_at": "TIMESTAMPTZ"
+        }
+      },
+      "embeddings": {
+        "description": "Vector embeddings for semantic search (AI feature)",
+        "fields": {
+          "id": "UUID (primary key)",
+          "owner_type": "TEXT (note | pin | etc.)",
+          "owner_id": "UUID (reference to owner)",
+          "vector": "vector(1536) (OpenAI embedding)",
+          "chunk_text": "TEXT (text that was embedded)",
+          "created_at": "TIMESTAMPTZ"
+        },
+        "indexes": [
+          "ivfflat index on vector using vector_cosine_ops"
+        ]
+      },
+      "events": {
+        "description": "Analytics events",
+        "fields": {
+          "id": "UUID (primary key)",
+          "user_id": "UUID (foreign key to users.id, nullable)",
+          "type": "TEXT (create_note, pin_url, upload_asset, etc.)",
+          "payload": "JSONB (event-specific data)",
+          "created_at": "TIMESTAMPTZ"
+        }
+      }
+    }
+  },
+  "enums": {
+    "contentType": {
+      "description": "Note content format",
+      "values": ["markdown", "richtext"]
+    },
+    "planTier": {
+      "description": "User subscription tier (future)",
+      "values": ["free", "paid"]
+    },
+    "assetType": {
+      "description": "Asset file type (future)",
+      "values": ["image", "pdf", "video", "audio"]
+    },
+    "eventType": {
+      "description": "Analytics event types (future)",
+      "values": [
+        "create_note",
+        "update_note",
+        "pin_url",
+        "upload_asset",
+        "share_note",
+        "toggle_private",
+        "ai_action",
+        "search",
+        "upgrade_clicked",
+        "export"
+      ]
+    }
+  },
+  "migrationNotes": {
+    "currentState": "LocalStorage with JSON strings",
+    "futureState": "Supabase PostgreSQL with RLS",
+    "migrationPath": [
+      "1. Rung 0.5: Set up Supabase project and authentication",
+      "2. Create tables with SQL migrations",
+      "3. Implement RLS policies for security",
+      "4. Create SupabaseAdapter implementing StorageAdapter interface",
+      "5. Rung 0.6: Switch storage adapter via environment variable",
+      "6. Test CRUD operations thoroughly",
+      "7. Implement data migration tool (LocalStorage → Supabase)",
+      "8. Gradual rollout with feature flag"
+    ],
+    "considerations": [
+      "LocalStorage uses crypto.randomUUID() for IDs (compatible with PostgreSQL UUID)",
+      "ISO 8601 timestamps in LocalStorage (compatible with TIMESTAMPTZ)",
+      "Photos will migrate from base64 to Supabase Storage URLs",
+      "RLS policies must prevent cross-user access",
+      "Migration tool should handle large datasets gracefully"
+    ]
+  }
+}
