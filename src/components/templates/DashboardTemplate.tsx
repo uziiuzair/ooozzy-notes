@@ -49,7 +49,7 @@ export const DashboardTemplate: FC = () => {
     refreshLinkMetadata,
   } = useLinks();
   const { folders, createFolder, deleteFolder, updateFolder } = useFolders();
-  const { createLabel } = useLabels();
+  const { labels, createLabel } = useLabels();
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [filteredPhotos, setFilteredPhotos] = useState<Photo[]>([]);
   const [filteredLinks, setFilteredLinks] = useState<Link[]>([]);
@@ -757,6 +757,7 @@ export const DashboardTemplate: FC = () => {
               photos={filteredPhotos}
               links={filteredLinks}
               folders={folders}
+              labels={labels}
               loadingMetadataIds={loadingMetadataIds}
               onNoteClick={handleNoteClick}
               onNoteDelete={handleNoteDelete}
@@ -882,6 +883,7 @@ export const DashboardTemplate: FC = () => {
                 photos={filteredPhotos}
                 links={filteredLinks}
                 folders={folders}
+                labels={labels}
                 loadingMetadataIds={loadingMetadataIds}
                 onNoteClick={handleNoteClick}
                 onNoteDelete={handleNoteDelete}
@@ -1039,6 +1041,7 @@ export const DashboardTemplate: FC = () => {
         onClose={() => setEditCardModal({ isOpen: false, item: null, type: null })}
         item={editCardModal.item}
         type={editCardModal.type as "note" | "photo" | "link"}
+        labels={labels}
         onSave={handleCardSave}
       />
 

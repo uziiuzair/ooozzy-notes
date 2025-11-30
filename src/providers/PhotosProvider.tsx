@@ -5,6 +5,10 @@ import { Photo, PhotoInput, PhotoUpdate } from "@/types/photo";
 import { getStorageAdapter } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { useEvents } from "@/hooks/useEvents";
+import { classifyContent } from "@/lib/ai/labelClassifier";
+import { useLabels } from "@/hooks/useLabels";
+import { useFolders } from "@/hooks/useFolders";
+import { FolderSuggestionModal } from "@/components/molecules/FolderSuggestionModal";
 
 interface PhotosContextType {
   photos: Photo[];
@@ -21,6 +25,15 @@ export function PhotosProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const { emit } = useEvents();
+  const { labels, createLabel } = useLabels();
+  const { folders } = useFolders();
+
+  // Folder suggestion modal state
+  const [folderSuggestion, setFolderSuggestion] = useState<{
+    photoId: string;
+    folderName: string;
+    folderId: string;
+  } | null>(null);
 
   // Load photos from storage on mount and when auth state changes
   useEffect(() => {
@@ -52,6 +65,62 @@ export function PhotosProvider({ children }: { children: React.ReactNode }) {
       size: newPhoto.size || 0,
       timestamp: Date.now(),
     });
+
+    // AI label classification (async, non-blocking)
+    if (user && !photoInput.labelIds) {
+      classifyContent({
+        content: newPhoto.caption || "",
+        title: newPhoto.title,
+        type: "photo",
+        existingLabels: labels,
+      })
+        .then(async (result) => {
+          if (result.suggestedLabelIds.length === 0 && result.newLabels.length === 0) {
+            return; // No suggestions
+          }
+
+          // Create new labels first
+          const createdLabelIds: string[] = [];
+          for (const newLabelInput of result.newLabels) {
+            try {
+              const createdLabel = await createLabel(newLabelInput);
+              createdLabelIds.push(createdLabel.id);
+            } catch (err) {
+              console.error("Failed to create suggested label:", err);
+            }
+          }
+
+          const allSuggestedLabelIds = [...result.suggestedLabelIds, ...createdLabelIds];
+          if (allSuggestedLabelIds.length === 0) return;
+
+          // Auto-apply labels immediately
+          try {
+            await adapter.updatePhoto(newPhoto.id, { labelIds: allSuggestedLabelIds });
+            setPhotos((prev) =>
+              prev.map((photo) =>
+                photo.id === newPhoto.id ? { ...photo, labelIds: allSuggestedLabelIds } : photo
+              )
+            );
+
+            // Check for folder suggestions
+            const matchingFolder = folders.find(f =>
+              f.labelIds?.some(id => allSuggestedLabelIds.includes(id))
+            );
+            if (matchingFolder && !newPhoto.folderId) {
+              setFolderSuggestion({
+                photoId: newPhoto.id,
+                folderName: matchingFolder.name,
+                folderId: matchingFolder.id,
+              });
+            }
+          } catch (err) {
+            console.error("Failed to auto-apply labels:", err);
+          }
+        })
+        .catch((err) => {
+          console.error("AI classification failed:", err);
+        });
+    }
 
     return newPhoto;
   };
@@ -229,6 +298,22 @@ export function PhotosProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const handleMoveToFolder = async () => {
+    if (!folderSuggestion) return;
+
+    const adapter = getStorageAdapter(user?.uid);
+    await adapter.updatePhoto(folderSuggestion.photoId, {
+      folderId: folderSuggestion.folderId,
+    });
+    setPhotos((prev) =>
+      prev.map((photo) =>
+        photo.id === folderSuggestion.photoId
+          ? { ...photo, folderId: folderSuggestion.folderId }
+          : photo
+      )
+    );
+  };
+
   return (
     <PhotosContext.Provider
       value={{
@@ -241,6 +326,12 @@ export function PhotosProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      <FolderSuggestionModal
+        isOpen={!!folderSuggestion}
+        folderName={folderSuggestion?.folderName || ""}
+        onMove={handleMoveToFolder}
+        onDismiss={() => setFolderSuggestion(null)}
+      />
     </PhotosContext.Provider>
   );
 }

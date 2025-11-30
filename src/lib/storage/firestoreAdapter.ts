@@ -110,6 +110,9 @@ export class FirestoreAdapter implements StorageAdapter {
       if (noteInput.folderId !== undefined) {
         noteData.folderId = noteInput.folderId;
       }
+      if (noteInput.labelIds !== undefined) {
+        noteData.labelIds = noteInput.labelIds;
+      }
       if (noteInput.isPinned !== undefined) {
         noteData.isPinned = noteInput.isPinned;
       }
@@ -152,6 +155,7 @@ export class FirestoreAdapter implements StorageAdapter {
         updateData.contentType = updates.contentType;
       if (updates.tags !== undefined) updateData.tags = updates.tags;
       if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
+      if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;
       if (updates.isPinned !== undefined) updateData.isPinned = updates.isPinned;
 
       await updateDoc(docRef, updateData);
@@ -450,6 +454,7 @@ export class FirestoreAdapter implements StorageAdapter {
 
         // Add optional fields only if they have values
         if (photo.folderId !== undefined) photoData.folderId = photo.folderId;
+        if (photo.labelIds !== undefined) photoData.labelIds = photo.labelIds;
         if (photo.thumbnailUrl !== undefined) photoData.thumbnailUrl = photo.thumbnailUrl;
         if (photo.caption !== undefined) photoData.caption = photo.caption;
         if (photo.isPinned !== undefined) photoData.isPinned = photo.isPinned;
@@ -493,6 +498,7 @@ export class FirestoreAdapter implements StorageAdapter {
       if (updates.thumbnailUrl !== undefined) updateData.thumbnailUrl = updates.thumbnailUrl;
       if (updates.caption !== undefined) updateData.caption = updates.caption;
       if (updates.tags !== undefined) updateData.tags = updates.tags;
+      if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;
       if (updates.isPinned !== undefined) updateData.isPinned = updates.isPinned;
       if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
       if (updates.width !== undefined) updateData.width = updates.width;
@@ -543,6 +549,7 @@ export class FirestoreAdapter implements StorageAdapter {
           favicon: data.favicon,
           image: data.image,
           domain: data.domain,
+          labelIds: data.labelIds,
           isPinned: data.isPinned,
           folderId: data.folderId,
           createdAt: new Date(this.timestampToString(data.createdAt)),
@@ -580,6 +587,7 @@ export class FirestoreAdapter implements StorageAdapter {
         if (link.description !== undefined) linkData.description = link.description;
         if (link.favicon !== undefined) linkData.favicon = link.favicon;
         if (link.image !== undefined) linkData.image = link.image;
+        if (link.labelIds !== undefined) linkData.labelIds = link.labelIds;
         if (link.folderId !== undefined) linkData.folderId = link.folderId;
 
         await setDoc(docRef, linkData);
@@ -618,6 +626,7 @@ export class FirestoreAdapter implements StorageAdapter {
       if (updates.favicon !== undefined) updateData.favicon = updates.favicon;
       if (updates.image !== undefined) updateData.image = updates.image;
       if (updates.domain !== undefined) updateData.domain = updates.domain;
+      if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;
       if (updates.isPinned !== undefined) updateData.isPinned = updates.isPinned;
       if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
 

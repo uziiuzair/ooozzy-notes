@@ -4,12 +4,17 @@ import { getStorageAdapter } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { NoteInput, NoteUpdate } from "@/types/note";
 import { useEvents } from "@/hooks/useEvents";
+import { useLabels } from "@/hooks/useLabels";
+import { useFolders } from "@/hooks/useFolders";
+import { classifyContent } from "@/lib/ai/labelClassifier";
 
 export const useNotes = () => {
   const { user } = useAuth();
-  const { notes, setNotes, loading, error, refreshNotes } = useNotesContext();
+  const { notes, setNotes, loading, error, refreshNotes, setFolderSuggestion } = useNotesContext();
   const [isOperating, setIsOperating] = useState(false);
   const { emit } = useEvents();
+  const { labels, createLabel } = useLabels();
+  const { folders } = useFolders();
 
   const createNote = useCallback(
     async (noteInput: Partial<NoteInput> = {}) => {
@@ -22,6 +27,7 @@ export const useNotes = () => {
           contentType: noteInput.contentType || "markdown",
           tags: noteInput.tags || [],
           folderId: noteInput.folderId,
+          labelIds: noteInput.labelIds,
           isPinned: noteInput.isPinned || false,
         });
 
@@ -35,6 +41,62 @@ export const useNotes = () => {
           timestamp: Date.now(),
         });
 
+        // AI label classification (async, non-blocking)
+        if (user && !noteInput.labelIds) {
+          classifyContent({
+            content: newNote.content,
+            title: newNote.title,
+            type: "note",
+            existingLabels: labels,
+          })
+            .then(async (result) => {
+              if (result.suggestedLabelIds.length === 0 && result.newLabels.length === 0) {
+                return; // No suggestions
+              }
+
+              // Create new labels first
+              const createdLabelIds: string[] = [];
+              for (const newLabelInput of result.newLabels) {
+                try {
+                  const createdLabel = await createLabel(newLabelInput);
+                  createdLabelIds.push(createdLabel.id);
+                } catch (err) {
+                  console.error("Failed to create suggested label:", err);
+                }
+              }
+
+              const allSuggestedLabelIds = [...result.suggestedLabelIds, ...createdLabelIds];
+              if (allSuggestedLabelIds.length === 0) return;
+
+              // Auto-apply labels immediately
+              try {
+                await adapter.updateNote(newNote.id, { labelIds: allSuggestedLabelIds });
+                setNotes((prev) =>
+                  prev.map((note) =>
+                    note.id === newNote.id ? { ...note, labelIds: allSuggestedLabelIds } : note
+                  )
+                );
+
+                // Check for folder suggestions
+                const matchingFolder = folders.find(f =>
+                  f.labelIds?.some(id => allSuggestedLabelIds.includes(id))
+                );
+                if (matchingFolder && !newNote.folderId) {
+                  setFolderSuggestion({
+                    noteId: newNote.id,
+                    folderName: matchingFolder.name,
+                    folderId: matchingFolder.id,
+                  });
+                }
+              } catch (err) {
+                console.error("Failed to auto-apply labels:", err);
+              }
+            })
+            .catch((err) => {
+              console.error("AI classification failed:", err);
+            });
+        }
+
         return newNote;
       } catch (error) {
         console.error("Failed to create note:", error);
@@ -43,7 +105,7 @@ export const useNotes = () => {
         setIsOperating(false);
       }
     },
-    [setNotes, user, emit]
+    [setNotes, user, emit, labels, createLabel, folders, setFolderSuggestion]
   );
 
   const updateNote = useCallback(

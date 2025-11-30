@@ -2,13 +2,16 @@
 
 import React, { useState } from "react";
 import { Photo } from "@/types/photo";
+import { Label } from "@/types/label";
 import { Card } from "@/components/atoms/Card";
 import { Typography } from "@/components/atoms/Typography";
-import { Badge } from "@/components/atoms/Badge";
+import { LabelBadge } from "@/components/molecules/LabelBadge";
 import { useRouter } from "next/navigation";
+import { formatRelativeTime } from "@/lib/utils";
 
 interface PhotoCardProps {
   photo: Photo;
+  labels?: Label[];
   onDelete?: (id: string) => void;
   onEdit?: (photo: Photo) => void;
   onDragStart?: (photo: Photo) => void;
@@ -17,6 +20,7 @@ interface PhotoCardProps {
 
 export function PhotoCard({
   photo,
+  labels = [],
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onDelete,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -26,6 +30,10 @@ export function PhotoCard({
 }: PhotoCardProps) {
   const router = useRouter();
   const [imageError, setImageError] = useState(false);
+
+  const photoLabels = photo.labelIds
+    ? labels.filter((l) => photo.labelIds!.includes(l.id))
+    : [];
 
   const handleClick = () => {
     router.push(`/photo/${photo.id}`);
@@ -132,7 +140,10 @@ export function PhotoCard({
 
       {/* Photo details */}
       <div className="pt-4 flex flex-col gap-2">
-        <Typography variant="h4" className="font-semibold truncate text-base">
+        <Typography
+          variant="h4"
+          className="font-semibold truncate w-full text-base"
+        >
           {photo.title}
         </Typography>
 
@@ -145,26 +156,26 @@ export function PhotoCard({
           </Typography>
         )}
 
-        {/* Tags */}
-        {photo.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {photo.tags.slice(0, 3).map((tag) => (
-              <Badge key={tag} variant="secondary" size="sm">
-                {tag}
-              </Badge>
-            ))}
-            {photo.tags.length > 3 && (
-              <Badge variant="secondary" size="sm">
-                +{photo.tags.length - 3}
-              </Badge>
-            )}
-          </div>
-        )}
+        <div className="flex items-center justify-between">
+          {/* Date */}
+          <Typography variant="caption" className="text-gray-500 block">
+            {formatRelativeTime(photo.createdAt)}
+          </Typography>
 
-        {/* Date */}
-        <Typography variant="caption" className="text-gray-500 block">
-          {new Date(photo.createdAt).toLocaleDateString()}
-        </Typography>
+          {/* Labels */}
+          {photoLabels.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {photoLabels.slice(0, 1).map((label) => (
+                <LabelBadge key={label.id} label={label} size="sm" />
+              ))}
+              {photoLabels.length > 1 && (
+                <span className="text-xs text-gray-500 self-center">
+                  +{photoLabels.length - 1}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </Card>
   );

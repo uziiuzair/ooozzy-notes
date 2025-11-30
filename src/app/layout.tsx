@@ -3,7 +3,9 @@ import localFont from "next/font/local";
 import { AppProvider } from "@/providers/AppProvider";
 import { AuthGuard } from "@/components/organisms/AuthGuard";
 import { EventDebugger } from "@/components/organisms/EventDebugger";
+import { AIDebugger } from "@/components/organisms/AIDebugger";
 import { MigrationPrompt } from "@/components/organisms/MigrationPrompt";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 import { Caveat } from "next/font/google";
@@ -65,8 +67,14 @@ export default function RootLayout({
           <AuthGuard>
             {children}
             <MigrationPrompt />
-            {process.env.NODE_ENV === "development" && <EventDebugger />}
+            {process.env.NODE_ENV === "development" && (
+              <>
+                <EventDebugger />
+                <AIDebugger />
+              </>
+            )}
           </AuthGuard>
+          <Toaster position="bottom-right" richColors expand={true} />
         </AppProvider>
       </body>
     </html>

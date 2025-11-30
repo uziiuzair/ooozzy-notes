@@ -6,11 +6,13 @@ import { Note } from "@/types/note";
 import { Photo } from "@/types/photo";
 import { Link } from "@/types/link";
 import { Folder } from "@/types/folder";
+import { Label } from "@/types/label";
 import { NoteCard } from "@/components/molecules/NoteCard";
 import { PhotoCard } from "@/components/molecules/PhotoCard";
 import { LinkCard } from "@/components/molecules/LinkCard";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { ContextMenu } from "@/components/molecules/ContextMenu";
+import { LabelManager } from "@/components/organisms/LabelManager";
 import { useRouter } from "next/navigation";
 
 interface ContentItem {
@@ -25,6 +27,7 @@ interface ContentGridProps {
   photos: Photo[];
   links: Link[];
   folders: Folder[];
+  labels?: Label[];
   loadingMetadataIds?: Set<string>;
   onNoteClick?: (note: Note) => void;
   onNoteDelete?: (note: Note) => void;
@@ -55,6 +58,7 @@ export function ContentGrid({
   photos,
   links,
   folders,
+  labels = [],
   loadingMetadataIds,
   onNoteClick,
   onNoteDelete,
@@ -81,6 +85,8 @@ export function ContentGrid({
     y: number;
     item: ContentItem;
   } | null>(null);
+  const [labelManagerOpen, setLabelManagerOpen] = useState(false);
+  const [labelManagerItem, setLabelManagerItem] = useState<ContentItem | null>(null);
 
   // Combine notes, photos, and links into a single array
   const contentItems: ContentItem[] = [
@@ -207,6 +213,28 @@ export function ContentGrid({
     setContextMenu(null);
   };
 
+  const handleManageLabels = () => {
+    if (!contextMenu) return;
+
+    const { item } = contextMenu;
+    setLabelManagerItem(item);
+    setLabelManagerOpen(true);
+    setContextMenu(null);
+  };
+
+  const handleSaveLabels = (id: string, labelIds: string[]) => {
+    if (!labelManagerItem) return;
+
+    const { type } = labelManagerItem;
+    if (type === "note") {
+      onNoteUpdate?.(id, { labelIds });
+    } else if (type === "photo") {
+      onPhotoUpdate?.(id, { labelIds });
+    } else if (type === "link") {
+      onLinkUpdate?.(id, { labelIds });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -262,16 +290,20 @@ export function ContentGrid({
                 onClick={() => onNoteClick?.(item.data as Note)}
                 onDragStart={() => onNoteDragStart?.(item.data as Note)}
                 onDragEnd={onDragEnd}
+                folders={folders}
+                labels={labels}
               />
             ) : item.type === "photo" ? (
               <PhotoCard
                 photo={item.data as Photo}
+                labels={labels}
                 onDragStart={() => onPhotoDragStart?.(item.data as Photo)}
                 onDragEnd={onDragEnd}
               />
             ) : (
               <LinkCard
                 link={item.data as Link}
+                labels={labels}
                 isLoadingMetadata={loadingMetadataIds?.has(
                   (item.data as Link).id
                 )}
@@ -365,6 +397,28 @@ export function ContentGrid({
             {contextMenu.item.isPinned ? "Unpin" : "Pin"}
           </button>
 
+          {/* Manage Labels */}
+          <div className="border-t border-gray-200 my-1" />
+          <button
+            onClick={handleManageLabels}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+              />
+            </svg>
+            Manage Labels
+          </button>
+
           {/* Refresh Metadata - only for links */}
           {contextMenu.item.type === "link" && (
             <>
@@ -434,6 +488,21 @@ export function ContentGrid({
             Delete
           </button>
         </ContextMenu>
+      )}
+
+      {/* Label Manager Modal */}
+      {labelManagerItem && (
+        <LabelManager
+          isOpen={labelManagerOpen}
+          onClose={() => {
+            setLabelManagerOpen(false);
+            setLabelManagerItem(null);
+          }}
+          item={labelManagerItem.data}
+          type={labelManagerItem.type}
+          labels={labels}
+          onSave={handleSaveLabels}
+        />
       )}
     </>
   );

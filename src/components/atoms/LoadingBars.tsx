@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 interface LoadingBarsProps {
@@ -46,25 +47,44 @@ export function LoadingBars({
 
   return (
     <div
-      className={`${config.padding} rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm shadow-sm border border-gray-200/50 dark:border-gray-700/50 flex items-center ${config.spacing}`}
+      className={cn(
+        "rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm shadow-sm border border-gray-200/50 dark:border-gray-700/50 flex items-center",
+        config.padding,
+        config.spacing
+      )}
     >
       <div className={`flex ${config.gap}`}>
         <motion.div
           className={`${config.barWidth} ${barColor} rounded-full`}
           animate={{ scaleY: [0.33, 1, 0.33] }}
-          transition={{ duration: 1.2, repeat: Infinity, delay: 0, ease: "easeInOut" }}
+          transition={{
+            duration: 1.2,
+            repeat: Infinity,
+            delay: 0,
+            ease: "easeInOut",
+          }}
           style={{ height: config.barHeight, transformOrigin: "center" }}
         />
         <motion.div
           className={`${config.barWidth} ${barColor} rounded-full`}
           animate={{ scaleY: [0.33, 1, 0.33] }}
-          transition={{ duration: 1.2, repeat: Infinity, delay: 0.15, ease: "easeInOut" }}
+          transition={{
+            duration: 1.2,
+            repeat: Infinity,
+            delay: 0.15,
+            ease: "easeInOut",
+          }}
           style={{ height: config.barHeight, transformOrigin: "center" }}
         />
         <motion.div
           className={`${config.barWidth} ${barColor} rounded-full`}
           animate={{ scaleY: [0.33, 1, 0.33] }}
-          transition={{ duration: 1.2, repeat: Infinity, delay: 0.3, ease: "easeInOut" }}
+          transition={{
+            duration: 1.2,
+            repeat: Infinity,
+            delay: 0.3,
+            ease: "easeInOut",
+          }}
           style={{ height: config.barHeight, transformOrigin: "center" }}
         />
       </div>

@@ -6,6 +6,7 @@ export interface Link {
   favicon?: string;
   image?: string;
   domain: string;
+  labelIds?: string[];
   createdAt: Date;
   updatedAt: Date;
   isPinned: boolean;

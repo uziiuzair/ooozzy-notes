@@ -11,6 +11,10 @@ import { Link, LinkMetadata } from "@/types/link";
 import { getStorageAdapter } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { useEvents } from "@/hooks/useEvents";
+import { classifyContent } from "@/lib/ai/labelClassifier";
+import { useLabels } from "@/hooks/useLabels";
+import { useFolders } from "@/hooks/useFolders";
+import { FolderSuggestionModal } from "@/components/molecules/FolderSuggestionModal";
 
 interface LinksContextType {
   links: Link[];
@@ -32,6 +36,15 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
   const [links, setLinks] = useState<Link[]>([]);
   const [loadingMetadataIds, setLoadingMetadataIds] = useState<Set<string>>(new Set());
   const { emit } = useEvents();
+  const { labels, createLabel } = useLabels();
+  const { folders } = useFolders();
+
+  // Folder suggestion modal state
+  const [folderSuggestion, setFolderSuggestion] = useState<{
+    linkId: string;
+    folderName: string;
+    folderId: string;
+  } | null>(null);
 
   // Load links from storage on mount and when auth state changes
   useEffect(() => {
@@ -197,6 +210,63 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
                 : link
             )
           );
+
+          // AI label classification (async, non-blocking) - run after metadata is fetched
+          if (user && !newLink.labelIds) {
+            classifyContent({
+              content: metadata.description || "",
+              title: metadata.title || newLink.title,
+              type: "link",
+              existingLabels: labels,
+            })
+              .then(async (result) => {
+                if (result.suggestedLabelIds.length === 0 && result.newLabels.length === 0) {
+                  return; // No suggestions
+                }
+
+                // Create new labels first
+                const createdLabelIds: string[] = [];
+                for (const newLabelInput of result.newLabels) {
+                  try {
+                    const createdLabel = await createLabel(newLabelInput);
+                    createdLabelIds.push(createdLabel.id);
+                  } catch (err) {
+                    console.error("Failed to create suggested label:", err);
+                  }
+                }
+
+                const allSuggestedLabelIds = [...result.suggestedLabelIds, ...createdLabelIds];
+                if (allSuggestedLabelIds.length === 0) return;
+
+                // Auto-apply labels immediately
+                try {
+                  const adapter = getStorageAdapter(user?.uid);
+                  await adapter.updateLink(newLink.id, { labelIds: allSuggestedLabelIds });
+                  setLinks((prev) =>
+                    prev.map((link) =>
+                      link.id === newLink.id ? { ...link, labelIds: allSuggestedLabelIds } : link
+                    )
+                  );
+
+                  // Check for folder suggestions
+                  const matchingFolder = folders.find(f =>
+                    f.labelIds?.some(id => allSuggestedLabelIds.includes(id))
+                  );
+                  if (matchingFolder && !newLink.folderId) {
+                    setFolderSuggestion({
+                      linkId: newLink.id,
+                      folderName: matchingFolder.name,
+                      folderId: matchingFolder.id,
+                    });
+                  }
+                } catch (err) {
+                  console.error("Failed to auto-apply labels:", err);
+                }
+              })
+              .catch((err) => {
+                console.error("AI classification failed:", err);
+              });
+          }
         })
         .finally(() => {
           // Remove from loading state
@@ -209,7 +279,7 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
 
       return newLink;
     },
-    [links, fetchLinkMetadata, emit]
+    [links, fetchLinkMetadata, emit, user, labels, createLabel, folders]
   );
 
   const updateLink = useCallback(async (id: string, updates: Partial<Link>) => {
@@ -349,6 +419,22 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
     [fetchLinkMetadata, updateLink]
   );
 
+  const handleMoveToFolder = useCallback(async () => {
+    if (!folderSuggestion) return;
+
+    const adapter = getStorageAdapter(user?.uid);
+    await adapter.updateLink(folderSuggestion.linkId, {
+      folderId: folderSuggestion.folderId,
+    });
+    setLinks((prev) =>
+      prev.map((link) =>
+        link.id === folderSuggestion.linkId
+          ? { ...link, folderId: folderSuggestion.folderId }
+          : link
+      )
+    );
+  }, [folderSuggestion, user]);
+
   return (
     <LinksContext.Provider
       value={{
@@ -365,6 +451,12 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      <FolderSuggestionModal
+        isOpen={!!folderSuggestion}
+        folderName={folderSuggestion?.folderName || ""}
+        onMove={handleMoveToFolder}
+        onDismiss={() => setFolderSuggestion(null)}
+      />
     </LinksContext.Provider>
   );
 }

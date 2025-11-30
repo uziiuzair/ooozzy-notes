@@ -1,9 +1,9 @@
 import { FC, useState } from "react";
 import { Card } from "@/components/atoms/Card";
 import { Typography } from "@/components/atoms/Typography";
-import { Badge } from "@/components/atoms/Badge";
 import { Note } from "@/types/note";
 import { Folder } from "@/types/folder";
+import { Label } from "@/types/label";
 import {
   formatRelativeTime,
   truncateText,
@@ -15,6 +15,7 @@ import {
   ContextMenuSeparator,
   ContextMenuSubmenu,
 } from "@/components/molecules/ContextMenu";
+import { LabelBadge } from "@/components/molecules/LabelBadge";
 
 interface NoteCardProps {
   note: Note;
@@ -24,6 +25,7 @@ interface NoteCardProps {
   onDragEnd?: () => void;
   onMoveToFolder?: (noteId: string, folderId: string | null) => void;
   folders?: Folder[];
+  labels?: Label[];
 }
 
 export const NoteCard: FC<NoteCardProps> = ({
@@ -34,7 +36,11 @@ export const NoteCard: FC<NoteCardProps> = ({
   onDragEnd,
   onMoveToFolder,
   folders = [],
+  labels = [],
 }) => {
+  const noteLabels = note.labelIds
+    ? labels.filter((l) => note.labelIds!.includes(l.id))
+    : [];
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -67,7 +73,7 @@ export const NoteCard: FC<NoteCardProps> = ({
   return (
     <>
       <Card
-        className="relative group cursor-pointer aspect-[4/2] flex flex-col"
+        className="relative group cursor-pointer flex flex-col"
         onClick={onClick}
         onContextMenu={handleContextMenu}
         hoverable
@@ -78,8 +84,19 @@ export const NoteCard: FC<NoteCardProps> = ({
         {/* Pin indicator */}
         {note.isPinned && (
           <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="size-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z"
+              />
             </svg>
           </div>
         )}
@@ -122,31 +139,24 @@ export const NoteCard: FC<NoteCardProps> = ({
             </Typography>
           </div>
 
-          {/* Tags */}
-          {note.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {note.tags.slice(0, 3).map((tag) => (
-                <Badge key={tag} variant="secondary" size="sm">
-                  {tag}
-                </Badge>
-              ))}
-              {note.tags.length > 3 && (
-                <Badge variant="default" size="sm">
-                  +{note.tags.length - 3}
-                </Badge>
-              )}
-            </div>
-          )}
-
           {/* Footer */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
             <Typography variant="caption">
               {formatRelativeTime(note.updatedAt)}
             </Typography>
-            {note.contentType === "markdown" && (
-              <Badge variant="default" size="sm">
-                MD
-              </Badge>
+
+            {/* Labels */}
+            {noteLabels.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {noteLabels.slice(0, 1).map((label) => (
+                  <LabelBadge key={label.id} label={label} size="sm" />
+                ))}
+                {noteLabels.length > 1 && (
+                  <span className="text-xs text-gray-500 self-center">
+                    +{noteLabels.length - 1}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

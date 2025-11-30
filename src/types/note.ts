@@ -5,6 +5,7 @@ export interface Note {
   content: string;
   contentType: "markdown" | "richtext";
   tags: string[];
+  labelIds?: string[];
   isPinned?: boolean;
   createdAt: string;
   updatedAt: string;

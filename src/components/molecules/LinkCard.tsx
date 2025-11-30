@@ -2,14 +2,17 @@
 
 import React, { useState } from "react";
 import { Link } from "@/types/link";
+import { Label } from "@/types/label";
 import { Card } from "@/components/atoms/Card";
 import { Typography } from "@/components/atoms/Typography";
 import { Badge } from "@/components/atoms/Badge";
+import { LabelBadge } from "@/components/molecules/LabelBadge";
 import { LoadingBars } from "@/components/atoms/LoadingBars";
 import { cn } from "@/lib/utils";
 
 interface LinkCardProps {
   link: Link;
+  labels?: Label[];
   isSelected?: boolean;
   isLoadingMetadata?: boolean;
   onSelect?: () => void;
@@ -20,6 +23,7 @@ interface LinkCardProps {
 
 export function LinkCard({
   link,
+  labels = [],
   isSelected = false,
   isLoadingMetadata = false,
   onSelect,
@@ -28,6 +32,10 @@ export function LinkCard({
   onDragEnd,
 }: LinkCardProps) {
   const [imageError, setImageError] = useState(false);
+
+  const linkLabels = link.labelIds
+    ? labels.filter((l) => link.labelIds!.includes(l.id))
+    : [];
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleClick = (e: React.MouseEvent) => {
@@ -146,7 +154,7 @@ export function LinkCard({
       <div className="pt-3">
         <Typography
           variant="h4"
-          className="font-semibold mb-1 line-clamp-2 text-sm"
+          className="font-semibold mb-1 line-clamp-2 text-sm truncate w-full"
         >
           {link.title
             .replace(/&#x27;/g, "'")
@@ -159,7 +167,7 @@ export function LinkCard({
         {link.description && (
           <Typography
             variant="body"
-            className="text-gray-600 dark:text-gray-400 mb-2 line-clamp-2 text-xs"
+            className="text-gray-600 dark:text-gray-400 mb-2 line-clamp-2 truncate w-full text-xs"
           >
             {link.description
               .replace(/&#x27;/g, "'")
@@ -170,21 +178,37 @@ export function LinkCard({
           </Typography>
         )}
 
-        <div className="flex items-center gap-2 mt-2">
-          {link.favicon && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={link.favicon}
-              alt=""
-              className="w-4 h-4 object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
+        <div className="flex items-center justify-between mt-4">
+          <div className="flex items-center gap-2 ">
+            {link.favicon && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={link.favicon}
+                alt=""
+                className="w-4 h-4 object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            )}
+            <Badge variant="secondary" className="text-xs">
+              {link.domain}
+            </Badge>
+          </div>
+
+          {/* Labels */}
+          {linkLabels.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {linkLabels.slice(0, 1).map((label) => (
+                <LabelBadge key={label.id} label={label} size="sm" />
+              ))}
+              {linkLabels.length > 1 && (
+                <span className="text-xs text-gray-500 self-center">
+                  +{linkLabels.length - 1}
+                </span>
+              )}
+            </div>
           )}
-          <Badge variant="secondary" className="text-xs">
-            {link.domain}
-          </Badge>
         </div>
       </div>
 

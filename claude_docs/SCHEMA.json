@@ -51,6 +51,14 @@
             "default": [],
             "example": ["work", "planning", "q1"]
           },
+          "labelIds": {
+            "type": "string[] | undefined",
+            "required": false,
+            "description": "Array of label IDs for organization (AI-suggested or manual)",
+            "foreignKey": "labels.id",
+            "default": [],
+            "example": ["label-uuid-1", "label-uuid-2"]
+          },
           "isPinned": {
             "type": "boolean | undefined",
             "required": false,
@@ -238,6 +246,14 @@
             "description": "Array of tag strings for categorization",
             "default": [],
             "example": ["vacation", "hawaii", "sunset", "2025"]
+          },
+          "labelIds": {
+            "type": "string[] | undefined",
+            "required": false,
+            "description": "Array of label IDs for organization (AI-suggested or manual)",
+            "foreignKey": "labels.id",
+            "default": [],
+            "example": ["label-uuid-1", "label-uuid-2"]
           },
           "isPinned": {
             "type": "boolean | undefined",

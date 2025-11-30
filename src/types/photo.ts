@@ -6,6 +6,7 @@ export interface Photo {
   thumbnailUrl?: string; // Optional thumbnail for performance
   caption?: string;
   tags: string[];
+  labelIds?: string[];
   isPinned?: boolean;
   width?: number;
   height?: number;
