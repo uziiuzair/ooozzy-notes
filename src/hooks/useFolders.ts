@@ -3,12 +3,14 @@ import { useFoldersContext } from "@/providers/FoldersProvider";
 import { getStorageAdapter } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { FolderInput, FolderUpdate } from "@/types/folder";
+import { useEvents } from "@/hooks/useEvents";
 
 export const useFolders = () => {
   const { user } = useAuth();
   const { folders, setFolders, loading, error, refreshFolders } =
     useFoldersContext();
   const [isOperating, setIsOperating] = useState(false);
+  const { emit } = useEvents();
 
   const createFolder = useCallback(
     async (folderInput: Partial<FolderInput> = {}) => {
@@ -42,6 +44,14 @@ export const useFolders = () => {
         setFolders((prev) =>
           prev.map((folder) => (folder.id === tempId ? newFolder : folder))
         );
+
+        // Emit event
+        emit("folder:created", {
+          folderId: newFolder.id,
+          name: newFolder.name,
+          timestamp: Date.now(),
+        });
+
         return newFolder;
       } catch (error) {
         console.error("Failed to create folder:", error);
@@ -52,7 +62,7 @@ export const useFolders = () => {
         setIsOperating(false);
       }
     },
-    [setFolders, user]
+    [setFolders, user, emit]
   );
 
   const updateFolder = useCallback(
@@ -64,6 +74,14 @@ export const useFolders = () => {
         setFolders((prev) =>
           prev.map((folder) => (folder.id === id ? updatedFolder : folder))
         );
+
+        // Emit event
+        emit("folder:updated", {
+          folderId: id,
+          fieldsUpdated: Object.keys(updates),
+          timestamp: Date.now(),
+        });
+
         return updatedFolder;
       } catch (error) {
         console.error("Failed to update folder:", error);
@@ -72,7 +90,7 @@ export const useFolders = () => {
         setIsOperating(false);
       }
     },
-    [setFolders, user]
+    [setFolders, user, emit]
   );
 
   const deleteFolder = useCallback(
@@ -81,13 +99,23 @@ export const useFolders = () => {
         setIsOperating(true);
         const adapter = getStorageAdapter(user?.uid);
 
-        // Optionally delete all notes in the folder
+        // Get note count before deletion for event
+        let noteCount = 0;
         if (deleteNotes) {
+          const notes = await adapter.getNotesByFolder(id);
+          noteCount = notes.length;
           await adapter.deleteNotesByFolder(id);
         }
 
         await adapter.deleteFolder(id);
         setFolders((prev) => prev.filter((folder) => folder.id !== id));
+
+        // Emit event
+        emit("folder:deleted", {
+          folderId: id,
+          noteCount,
+          timestamp: Date.now(),
+        });
       } catch (error) {
         console.error("Failed to delete folder:", error);
         throw error;
@@ -95,7 +123,7 @@ export const useFolders = () => {
         setIsOperating(false);
       }
     },
-    [setFolders, user]
+    [setFolders, user, emit]
   );
 
   const getFolderById = useCallback(

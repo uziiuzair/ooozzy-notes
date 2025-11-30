@@ -5,11 +5,13 @@ import { Link } from "@/types/link";
 import { Card } from "@/components/atoms/Card";
 import { Typography } from "@/components/atoms/Typography";
 import { Badge } from "@/components/atoms/Badge";
+import { LoadingBars } from "@/components/atoms/LoadingBars";
 import { cn } from "@/lib/utils";
 
 interface LinkCardProps {
   link: Link;
   isSelected?: boolean;
+  isLoadingMetadata?: boolean;
   onSelect?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   onDragStart?: (e: React.DragEvent) => void;
@@ -19,6 +21,7 @@ interface LinkCardProps {
 export function LinkCard({
   link,
   isSelected = false,
+  isLoadingMetadata = false,
   onSelect,
   onContextMenu,
   onDragStart,
@@ -65,7 +68,20 @@ export function LinkCard({
       {/* Pin indicator */}
       {link.isPinned && (
         <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center z-10">
-          <span className="text-xs">📌</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="size-4"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z"
+            />
+          </svg>
         </div>
       )}
 
@@ -82,16 +98,10 @@ export function LinkCard({
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-2">
-            {/* Show loading animation if no image yet but also no error */}
-            {!link.image && !imageError && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="relative">
-                  {/* Loading spinner */}
-                  <div className="absolute inset-0 animate-pulse">
-                    <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 opacity-30"></div>
-                  </div>
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500 dark:border-gray-400"></div>
-                </div>
+            {/* Show loading animation while metadata is being fetched */}
+            {isLoadingMetadata && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
+                <LoadingBars label="loading preview" size="md" />
               </div>
             )}
 
@@ -122,10 +132,10 @@ export function LinkCard({
               </svg>
             )}
 
-            {/* Loading text */}
-            {!link.image && !imageError && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Loading preview...
+            {/* No preview message - only show when loading is complete and no image */}
+            {!isLoadingMetadata && !link.image && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 z-10">
+                No preview available
               </span>
             )}
           </div>
@@ -133,12 +143,17 @@ export function LinkCard({
       </div>
 
       {/* Content */}
-      <div className="p-3">
+      <div className="pt-3">
         <Typography
           variant="h4"
           className="font-semibold mb-1 line-clamp-2 text-sm"
         >
-          {link.title}
+          {link.title
+            .replace(/&#x27;/g, "'")
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")}
         </Typography>
 
         {link.description && (
@@ -146,7 +161,12 @@ export function LinkCard({
             variant="body"
             className="text-gray-600 dark:text-gray-400 mb-2 line-clamp-2 text-xs"
           >
-            {link.description}
+            {link.description
+              .replace(/&#x27;/g, "'")
+              .replace(/&quot;/g, '"')
+              .replace(/&amp;/g, "&")
+              .replace(/&lt;/g, "<")
+              .replace(/&gt;/g, ">")}
           </Typography>
         )}
 

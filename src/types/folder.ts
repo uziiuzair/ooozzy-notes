@@ -3,6 +3,7 @@ export interface Folder {
   name: string;
   color?: string;
   icon?: string;
+  labelIds?: string[]; // References to label IDs
   createdAt: string;
   updatedAt: string;
 }

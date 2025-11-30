@@ -137,6 +137,12 @@
             "description": "Emoji or icon name for folder display",
             "example": "📁"
           },
+          "labelIds": {
+            "type": "string[] | undefined",
+            "required": false,
+            "description": "Array of label IDs associated with this folder",
+            "example": ["label-uuid-1", "label-uuid-2"]
+          },
           "createdAt": {
             "type": "string",
             "required": true,
@@ -407,6 +413,75 @@
             "type": "timestamptz",
             "description": "When OpenGraph metadata was last fetched",
             "example": "2025-01-24T11:45:30.000Z"
+          }
+        }
+      },
+      "labels": {
+        "description": "Shared labels for organizing folders, notes, photos, and links",
+        "storage": "Firestore",
+        "key": "labels",
+        "fields": {
+          "id": {
+            "type": "string",
+            "required": true,
+            "description": "UUID generated with crypto.randomUUID()",
+            "primaryKey": true,
+            "example": "aa0e8400-e29b-41d4-a716-446655440005"
+          },
+          "userId": {
+            "type": "string",
+            "required": true,
+            "description": "Reference to user who owns this label (Firebase UID)",
+            "example": "firebase-user-uid-123"
+          },
+          "name": {
+            "type": "string",
+            "required": true,
+            "description": "Label name (unique per user)",
+            "maxLength": 30,
+            "example": "Work"
+          },
+          "color": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Hex color code for label visual distinction",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "example": "#7240fe"
+          },
+          "createdAt": {
+            "type": "string",
+            "required": true,
+            "description": "ISO 8601 timestamp of creation",
+            "format": "date-time",
+            "example": "2025-11-30T10:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "required": true,
+            "description": "ISO 8601 timestamp of last update",
+            "format": "date-time",
+            "example": "2025-11-30T14:30:00.000Z"
+          }
+        },
+        "indexes": [],
+        "relationships": {
+          "manyToMany": {
+            "folders": {
+              "through": "folder.labelIds",
+              "description": "Labels can be applied to many folders"
+            },
+            "notes": {
+              "through": "note.labelIds (future)",
+              "description": "Labels can be applied to many notes (future feature)"
+            },
+            "photos": {
+              "through": "photo.labelIds (future)",
+              "description": "Labels can be applied to many photos (future feature)"
+            },
+            "links": {
+              "through": "link.labelIds (future)",
+              "description": "Labels can be applied to many links (future feature)"
+            }
           }
         }
       }

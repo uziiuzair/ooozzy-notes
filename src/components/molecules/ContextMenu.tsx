@@ -64,7 +64,7 @@ export const ContextMenu: FC<ContextMenuProps> = ({
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 min-w-[200px] bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 py-2 animate-in fade-in slide-in-from-top-1 duration-200"
+      className="fixed z-50 max-w-[200px] bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 py-2 animate-in fade-in slide-in-from-top-1 duration-200"
       style={{ left: x, top: y }}
     >
       {children}

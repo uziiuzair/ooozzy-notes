@@ -25,6 +25,7 @@ interface ContentGridProps {
   photos: Photo[];
   links: Link[];
   folders: Folder[];
+  loadingMetadataIds?: Set<string>;
   onNoteClick?: (note: Note) => void;
   onNoteDelete?: (note: Note) => void;
   onPhotoDelete?: (photo: Photo) => void;
@@ -32,6 +33,10 @@ interface ContentGridProps {
   onNoteUpdate?: (id: string, updates: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
   onPhotoUpdate?: (id: string, updates: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
   onLinkUpdate?: (id: string, updates: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+  onNoteEdit?: (note: Note) => void;
+  onPhotoEdit?: (photo: Photo) => void;
+  onLinkEdit?: (link: Link) => void;
+  onLinkRefreshMetadata?: (link: Link) => void;
   onNoteDragStart?: (note: Note) => void;
   onPhotoDragStart?: (photo: Photo) => void;
   onLinkDragStart?: (link: Link) => void;
@@ -50,6 +55,7 @@ export function ContentGrid({
   photos,
   links,
   folders,
+  loadingMetadataIds,
   onNoteClick,
   onNoteDelete,
   onPhotoDelete,
@@ -57,11 +63,15 @@ export function ContentGrid({
   onNoteUpdate,
   onPhotoUpdate,
   onLinkUpdate,
+  onNoteEdit,
+  onPhotoEdit,
+  onLinkEdit,
   onNoteDragStart,
   onPhotoDragStart,
   onLinkDragStart,
   onDragEnd,
   onMoveToFolder,
+  onLinkRefreshMetadata,
   onCreateNote,
   loading = false,
 }: ContentGridProps) {
@@ -116,19 +126,13 @@ export function ContentGrid({
     const { item } = contextMenu;
     if (item.type === "note") {
       const note = item.data as Note;
-      if (confirm(`Are you sure you want to delete "${note.title}"?`)) {
-        onNoteDelete?.(note);
-      }
+      onNoteDelete?.(note);
     } else if (item.type === "photo") {
       const photo = item.data as Photo;
-      if (confirm(`Are you sure you want to delete "${photo.title}"?`)) {
-        onPhotoDelete?.(photo);
-      }
+      onPhotoDelete?.(photo);
     } else {
       const link = item.data as Link;
-      if (confirm(`Are you sure you want to delete "${link.title}"?`)) {
-        onLinkDelete?.(link);
-      }
+      onLinkDelete?.(link);
     }
     setContextMenu(null);
   };
@@ -167,11 +171,39 @@ export function ContentGrid({
     setContextMenu(null);
   };
 
+  const handleEdit = () => {
+    if (!contextMenu) return;
+
+    const { item } = contextMenu;
+    if (item.type === "note") {
+      const note = item.data as Note;
+      onNoteEdit?.(note);
+    } else if (item.type === "photo") {
+      const photo = item.data as Photo;
+      onPhotoEdit?.(photo);
+    } else {
+      const link = item.data as Link;
+      onLinkEdit?.(link);
+    }
+    setContextMenu(null);
+  };
+
   const handleMoveToFolder = (folderId: string | null) => {
     if (!contextMenu) return;
 
     const { item } = contextMenu;
     onMoveToFolder?.(item.data.id, folderId, item.type);
+    setContextMenu(null);
+  };
+
+  const handleRefreshMetadata = async () => {
+    if (!contextMenu) return;
+
+    const { item } = contextMenu;
+    if (item.type === "link") {
+      const link = item.data as Link;
+      onLinkRefreshMetadata?.(link);
+    }
     setContextMenu(null);
   };
 
@@ -210,7 +242,7 @@ export function ContentGrid({
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
         {sortedContent.map((item, index) => (
           <motion.div
             key={`${item.type}-${item.data.id}`}
@@ -222,6 +254,7 @@ export function ContentGrid({
               delay: index * 0.08,
               ease: [0.25, 0.46, 0.45, 0.94],
             }}
+            className="break-inside-avoid mb-6"
           >
             {item.type === "note" ? (
               <NoteCard
@@ -239,6 +272,9 @@ export function ContentGrid({
             ) : (
               <LinkCard
                 link={item.data as Link}
+                isLoadingMetadata={loadingMetadataIds?.has(
+                  (item.data as Link).id
+                )}
                 onDragStart={(e) => {
                   e.dataTransfer.effectAllowed = "move";
                   e.dataTransfer.setData(
@@ -291,6 +327,25 @@ export function ContentGrid({
             View
           </button>
           <button
+            onClick={handleEdit}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            Edit
+          </button>
+          <button
             onClick={handlePin}
             className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
           >
@@ -310,27 +365,54 @@ export function ContentGrid({
             {contextMenu.item.isPinned ? "Unpin" : "Pin"}
           </button>
 
+          {/* Refresh Metadata - only for links */}
+          {contextMenu.item.type === "link" && (
+            <>
+              <div className="border-t border-gray-200 my-1" />
+              <button
+                onClick={handleRefreshMetadata}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                Refresh Metadata
+              </button>
+            </>
+          )}
+
           {/* Move to folder submenu */}
           <div className="border-t border-gray-200 my-1" />
           <div className="px-4 py-1 text-xs text-gray-500 uppercase">
             Move to
           </div>
-          <button
-            onClick={() => handleMoveToFolder(null)}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
-          >
-            Root (No folder)
-          </button>
-          {folders.map((folder) => (
+          <div className="h-36 overflow-y-auto">
             <button
-              key={folder.id}
-              onClick={() => handleMoveToFolder(folder.id)}
+              onClick={() => handleMoveToFolder(null)}
               className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
             >
-              {folder.name}
+              Root (No folder)
             </button>
-          ))}
-
+            {folders.map((folder) => (
+              <button
+                key={folder.id}
+                onClick={() => handleMoveToFolder(folder.id)}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+              >
+                {folder.name}
+              </button>
+            ))}
+          </div>
           <div className="border-t border-gray-200 my-1" />
           <button
             onClick={handleDelete}

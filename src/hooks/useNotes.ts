@@ -3,11 +3,13 @@ import { useNotesContext } from "@/providers/NotesProvider";
 import { getStorageAdapter } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 import { NoteInput, NoteUpdate } from "@/types/note";
+import { useEvents } from "@/hooks/useEvents";
 
 export const useNotes = () => {
   const { user } = useAuth();
   const { notes, setNotes, loading, error, refreshNotes } = useNotesContext();
   const [isOperating, setIsOperating] = useState(false);
+  const { emit } = useEvents();
 
   const createNote = useCallback(
     async (noteInput: Partial<NoteInput> = {}) => {
@@ -24,6 +26,15 @@ export const useNotes = () => {
         });
 
         setNotes((prev) => [...prev, newNote]);
+
+        // Emit event
+        emit("note:created", {
+          noteId: newNote.id,
+          folderId: newNote.folderId || null,
+          title: newNote.title,
+          timestamp: Date.now(),
+        });
+
         return newNote;
       } catch (error) {
         console.error("Failed to create note:", error);
@@ -32,7 +43,7 @@ export const useNotes = () => {
         setIsOperating(false);
       }
     },
-    [setNotes, user]
+    [setNotes, user, emit]
   );
 
   const updateNote = useCallback(
@@ -44,6 +55,15 @@ export const useNotes = () => {
         setNotes((prev) =>
           prev.map((note) => (note.id === id ? updatedNote : note))
         );
+
+        // Emit event
+        emit("note:updated", {
+          noteId: id,
+          folderId: updatedNote.folderId || null,
+          fieldsUpdated: Object.keys(updates),
+          timestamp: Date.now(),
+        });
+
         return updatedNote;
       } catch (error) {
         console.error("Failed to update note:", error);
@@ -52,16 +72,25 @@ export const useNotes = () => {
         setIsOperating(false);
       }
     },
-    [setNotes, user]
+    [setNotes, user, emit]
   );
 
   const deleteNote = useCallback(
     async (id: string) => {
       try {
         setIsOperating(true);
+        // Get note before deleting to capture folderId
+        const note = notes.find((n) => n.id === id);
         const adapter = getStorageAdapter(user?.uid);
         await adapter.deleteNote(id);
         setNotes((prev) => prev.filter((note) => note.id !== id));
+
+        // Emit event
+        emit("note:deleted", {
+          noteId: id,
+          folderId: note?.folderId || null,
+          timestamp: Date.now(),
+        });
       } catch (error) {
         console.error("Failed to delete note:", error);
         throw error;
@@ -69,7 +98,7 @@ export const useNotes = () => {
         setIsOperating(false);
       }
     },
-    [setNotes, user]
+    [setNotes, user, notes, emit]
   );
 
   const searchNotes = useCallback(
@@ -79,13 +108,22 @@ export const useNotes = () => {
           return notes;
         }
         const adapter = getStorageAdapter(user?.uid);
-        return await adapter.searchNotes(query);
+        const results = await adapter.searchNotes(query);
+
+        // Emit search event
+        emit("search:performed", {
+          query,
+          resultsCount: results.length,
+          timestamp: Date.now(),
+        });
+
+        return results;
       } catch (error) {
         console.error("Failed to search notes:", error);
         return [];
       }
     },
-    [notes, user]
+    [notes, user, emit]
   );
 
   const getNotesByFolder = useCallback(async (folderId: string) => {

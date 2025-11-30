@@ -62,7 +62,7 @@ export function PhotoCard({
 
   return (
     <Card
-      className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+      className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1"
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       draggable
@@ -72,7 +72,7 @@ export function PhotoCard({
       {/* Pin indicator */}
       {photo.isPinned && (
         <div className="absolute top-2 right-2 z-10">
-          <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center shadow-lg">
+          <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
             <svg
               className="w-4 h-4 text-white"
               fill="currentColor"
@@ -85,7 +85,7 @@ export function PhotoCard({
       )}
 
       {/* Image container with aspect ratio */}
-      <div className="relative w-full aspect-square bg-gray-100 overflow-hidden">
+      <div className="relative w-full aspect-square bg-gray-100 overflow-hidden rounded-xl">
         {!imageError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -114,7 +114,7 @@ export function PhotoCard({
         )}
 
         {/* Overlay with photo info on hover */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-500/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
             {photo.width && photo.height && (
               <Typography variant="caption" className="text-white/80">
@@ -131,11 +131,8 @@ export function PhotoCard({
       </div>
 
       {/* Photo details */}
-      <div className="p-4">
-        <Typography
-          variant="h4"
-          className="font-semibold truncate mb-1 text-base"
-        >
+      <div className="pt-4 flex flex-col gap-2">
+        <Typography variant="h4" className="font-semibold truncate text-base">
           {photo.title}
         </Typography>
 
@@ -150,7 +147,7 @@ export function PhotoCard({
 
         {/* Tags */}
         {photo.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
+          <div className="flex flex-wrap gap-1">
             {photo.tags.slice(0, 3).map((tag) => (
               <Badge key={tag} variant="secondary" size="sm">
                 {tag}
@@ -165,7 +162,7 @@ export function PhotoCard({
         )}
 
         {/* Date */}
-        <Typography variant="caption" className="text-gray-500 mt-2 block">
+        <Typography variant="caption" className="text-gray-500 block">
           {new Date(photo.createdAt).toLocaleDateString()}
         </Typography>
       </div>

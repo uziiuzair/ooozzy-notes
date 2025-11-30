@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { Photo, PhotoInput, PhotoUpdate } from "@/types/photo";
 import { getStorageAdapter } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
+import { useEvents } from "@/hooks/useEvents";
 
 interface PhotosContextType {
   photos: Photo[];
@@ -19,6 +20,7 @@ const PhotosContext = createContext<PhotosContextType | undefined>(undefined);
 export function PhotosProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const { emit } = useEvents();
 
   // Load photos from storage on mount and when auth state changes
   useEffect(() => {
@@ -42,6 +44,15 @@ export function PhotosProvider({ children }: { children: React.ReactNode }) {
     setPhotos(updatedPhotos);
     const adapter = getStorageAdapter(user?.uid);
     await adapter.savePhotos(updatedPhotos);
+
+    // Emit event
+    emit("photo:uploaded", {
+      photoId: newPhoto.id,
+      folderId: newPhoto.folderId || null,
+      size: newPhoto.size || 0,
+      timestamp: Date.now(),
+    });
+
     return newPhoto;
   };
 
@@ -57,13 +68,33 @@ export function PhotosProvider({ children }: { children: React.ReactNode }) {
     setPhotos(updatedPhotos);
     const adapter = getStorageAdapter(user?.uid);
     await adapter.savePhotos(updatedPhotos);
+
+    // Emit event
+    const updatedPhoto = updatedPhotos.find((p) => p.id === id);
+    if (updatedPhoto) {
+      emit("photo:updated", {
+        photoId: id,
+        folderId: updatedPhoto.folderId || null,
+        fieldsUpdated: Object.keys(updates),
+        timestamp: Date.now(),
+      });
+    }
   };
 
   const deletePhoto = async (id: string): Promise<void> => {
+    // Get photo before deletion for event data
+    const photo = photos.find((p) => p.id === id);
     const updatedPhotos = photos.filter((photo) => photo.id !== id);
     setPhotos(updatedPhotos);
     const adapter = getStorageAdapter(user?.uid);
     await adapter.savePhotos(updatedPhotos);
+
+    // Emit event
+    emit("photo:deleted", {
+      photoId: id,
+      folderId: photo?.folderId || null,
+      timestamp: Date.now(),
+    });
   };
 
   const getPhotosByFolder = (folderId: string): Photo[] => {

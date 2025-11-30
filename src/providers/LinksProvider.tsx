@@ -10,9 +10,11 @@ import React, {
 import { Link, LinkMetadata } from "@/types/link";
 import { getStorageAdapter } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
+import { useEvents } from "@/hooks/useEvents";
 
 interface LinksContextType {
   links: Link[];
+  loadingMetadataIds: Set<string>;
   addLink: (url: string) => Promise<Link>;
   updateLink: (id: string, updates: Partial<Link>) => void;
   deleteLink: (id: string) => void;
@@ -20,6 +22,7 @@ interface LinksContextType {
   togglePinLink: (id: string) => void;
   moveLinksToFolder: (linkIds: string[], folderId: string | null) => void;
   fetchLinkMetadata: (url: string) => Promise<LinkMetadata>;
+  refreshLinkMetadata: (link: Link) => Promise<void>;
 }
 
 const LinksContext = createContext<LinksContextType | undefined>(undefined);
@@ -27,6 +30,8 @@ const LinksContext = createContext<LinksContextType | undefined>(undefined);
 export function LinksProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [links, setLinks] = useState<Link[]>([]);
+  const [loadingMetadataIds, setLoadingMetadataIds] = useState<Set<string>>(new Set());
+  const { emit } = useEvents();
 
   // Load links from storage on mount and when auth state changes
   useEffect(() => {
@@ -83,12 +88,10 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
           favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
         };
 
-        // Fetch screenshot using Puppeteer service
+        // Fetch screenshot using our API proxy (avoids CORS issues)
         try {
           const screenshotResponse = await fetch(
-            `https://noodleseed-puppeteer.creativelog.workers.dev/?url=${encodeURIComponent(
-              url
-            )}`
+            `/api/screenshot?url=${encodeURIComponent(url)}`
           );
 
           if (screenshotResponse.ok) {
@@ -167,39 +170,114 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
       // Add link immediately
       setLinks((prev) => [...prev, newLink]);
 
-      // Fetch screenshot in background and update
-      fetchLinkMetadata(url).then((metadata) => {
-        setLinks((prev) =>
-          prev.map((link) =>
-            link.id === newLink.id
-              ? {
-                  ...link,
-                  title: metadata.title || link.title,
-                  description: metadata.description,
-                  image: metadata.image,
-                  updatedAt: new Date(),
-                }
-              : link
-          )
-        );
+      // Emit event
+      emit("link:captured", {
+        linkId: newLink.id,
+        url: newLink.url,
+        domain: newLink.domain,
+        timestamp: Date.now(),
       });
+
+      // Mark as loading
+      setLoadingMetadataIds((prev) => new Set(prev).add(newLink.id));
+
+      // Fetch screenshot in background and update
+      fetchLinkMetadata(url)
+        .then((metadata) => {
+          setLinks((prev) =>
+            prev.map((link) =>
+              link.id === newLink.id
+                ? {
+                    ...link,
+                    title: metadata.title || link.title,
+                    description: metadata.description,
+                    image: metadata.image,
+                    updatedAt: new Date(),
+                  }
+                : link
+            )
+          );
+        })
+        .finally(() => {
+          // Remove from loading state
+          setLoadingMetadataIds((prev) => {
+            const next = new Set(prev);
+            next.delete(newLink.id);
+            return next;
+          });
+        });
 
       return newLink;
     },
-    [links, fetchLinkMetadata]
+    [links, fetchLinkMetadata, emit]
   );
 
-  const updateLink = useCallback((id: string, updates: Partial<Link>) => {
+  const updateLink = useCallback(async (id: string, updates: Partial<Link>) => {
+    // Optimistically update UI
     setLinks((prev) =>
       prev.map((link) =>
         link.id === id ? { ...link, ...updates, updatedAt: new Date() } : link
       )
     );
-  }, []);
 
-  const deleteLink = useCallback((id: string) => {
+    // Persist to storage
+    try {
+      const adapter = getStorageAdapter(user?.uid);
+      await adapter.updateLink(id, updates);
+
+      // Emit event
+      const updatedLink = links.find((l) => l.id === id);
+      if (updatedLink) {
+        emit("link:updated", {
+          linkId: id,
+          folderId: updatedLink.folderId || null,
+          fieldsUpdated: Object.keys(updates),
+          timestamp: Date.now(),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update link:", error);
+      // Reload links to restore state on error
+      const adapter = getStorageAdapter(user?.uid);
+      const storedLinks = await adapter.getLinks();
+      const parsedLinks = storedLinks.map((link) => ({
+        ...link,
+        createdAt: new Date(link.createdAt),
+        updatedAt: new Date(link.updatedAt),
+      }));
+      setLinks(parsedLinks);
+      throw error;
+    }
+  }, [user, links, emit]);
+
+  const deleteLink = useCallback(async (id: string) => {
+    // Optimistically update UI
     setLinks((prev) => prev.filter((link) => link.id !== id));
-  }, []);
+
+    // Persist to storage
+    try {
+      const adapter = getStorageAdapter(user?.uid);
+      await adapter.deleteLink(id);
+
+      // Emit event
+      emit("link:deleted", {
+        linkId: id,
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      console.error("Failed to delete link:", error);
+      // Reload links to restore state on error
+      const adapter = getStorageAdapter(user?.uid);
+      const storedLinks = await adapter.getLinks();
+      const parsedLinks = storedLinks.map((link) => ({
+        ...link,
+        createdAt: new Date(link.createdAt),
+        updatedAt: new Date(link.updatedAt),
+      }));
+      setLinks(parsedLinks);
+      throw error;
+    }
+  }, [user, emit]);
 
   const deleteLinksInFolder = useCallback((folderId: string) => {
     setLinks((prev) => prev.filter((link) => link.folderId !== folderId));
@@ -217,6 +295,9 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
 
   const moveLinksToFolder = useCallback(
     (linkIds: string[], folderId: string | null) => {
+      // Get old folder IDs before moving for events
+      const movingLinks = links.filter((link) => linkIds.includes(link.id));
+
       setLinks((prev) =>
         prev.map((link) =>
           linkIds.includes(link.id)
@@ -228,14 +309,51 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
             : link
         )
       );
+
+      // Emit event for each moved link
+      movingLinks.forEach((link) => {
+        emit("link:moved", {
+          linkId: link.id,
+          fromFolderId: link.folderId || null,
+          toFolderId: folderId,
+          timestamp: Date.now(),
+        });
+      });
     },
-    []
+    [links, emit]
+  );
+
+  const refreshLinkMetadata = useCallback(
+    async (link: Link) => {
+      // Mark as loading
+      setLoadingMetadataIds((prev) => new Set(prev).add(link.id));
+
+      try {
+        const metadata = await fetchLinkMetadata(link.url);
+        await updateLink(link.id, {
+          title: metadata.title || link.title,
+          description: metadata.description,
+          favicon: metadata.favicon,
+          image: metadata.image,
+          domain: metadata.domain || link.domain,
+        });
+      } finally {
+        // Remove from loading state
+        setLoadingMetadataIds((prev) => {
+          const next = new Set(prev);
+          next.delete(link.id);
+          return next;
+        });
+      }
+    },
+    [fetchLinkMetadata, updateLink]
   );
 
   return (
     <LinksContext.Provider
       value={{
         links,
+        loadingMetadataIds,
         addLink,
         updateLink,
         deleteLink,
@@ -243,6 +361,7 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
         togglePinLink,
         moveLinksToFolder,
         fetchLinkMetadata,
+        refreshLinkMetadata,
       }}
     >
       {children}

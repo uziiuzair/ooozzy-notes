@@ -17,6 +17,7 @@ import { Note, NoteInput, NoteUpdate } from "@/types/note";
 import { Folder, FolderInput, FolderUpdate } from "@/types/folder";
 import { Photo } from "@/types/photo";
 import { Link } from "@/types/link";
+import { Label, LabelInput, LabelUpdate } from "@/types/label";
 
 export class FirestoreAdapter implements StorageAdapter {
   private userId: string;
@@ -260,6 +261,9 @@ export class FirestoreAdapter implements StorageAdapter {
       if (folderInput.icon !== undefined) {
         folderData.icon = folderInput.icon;
       }
+      if (folderInput.labelIds !== undefined) {
+        folderData.labelIds = folderInput.labelIds;
+      }
 
       await setDoc(docRef, folderData);
 
@@ -296,6 +300,7 @@ export class FirestoreAdapter implements StorageAdapter {
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.color !== undefined) updateData.color = updates.color;
       if (updates.icon !== undefined) updateData.icon = updates.icon;
+      if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;
 
       await updateDoc(docRef, updateData);
 
@@ -430,20 +435,75 @@ export class FirestoreAdapter implements StorageAdapter {
       // For production, implement individual photo CRUD operations
       const savePromises = photos.map(async (photo) => {
         const docRef = doc(db, "photos", photo.id);
-        await setDoc(docRef, {
-          ...photo,
+
+        // Build photo data without undefined fields
+        const photoData: Record<string, unknown> = {
+          title: photo.title,
+          url: photo.url,
+          tags: photo.tags || [],
           userId: this.userId,
           createdAt: photo.createdAt
             ? Timestamp.fromDate(new Date(photo.createdAt))
             : serverTimestamp(),
           updatedAt: serverTimestamp(),
-        });
+        };
+
+        // Add optional fields only if they have values
+        if (photo.folderId !== undefined) photoData.folderId = photo.folderId;
+        if (photo.thumbnailUrl !== undefined) photoData.thumbnailUrl = photo.thumbnailUrl;
+        if (photo.caption !== undefined) photoData.caption = photo.caption;
+        if (photo.isPinned !== undefined) photoData.isPinned = photo.isPinned;
+        if (photo.width !== undefined) photoData.width = photo.width;
+        if (photo.height !== undefined) photoData.height = photo.height;
+        if (photo.size !== undefined) photoData.size = photo.size;
+        if (photo.mimeType !== undefined) photoData.mimeType = photo.mimeType;
+
+        await setDoc(docRef, photoData);
       });
 
       await Promise.all(savePromises);
     } catch (error) {
       console.error("Failed to save photos to Firestore:", error);
       throw new Error("Failed to save photos. Please try again.");
+    }
+  }
+
+  async deletePhoto(id: string): Promise<void> {
+    try {
+      const docRef = doc(db, "photos", id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error("Failed to delete photo from Firestore:", error);
+      throw new Error("Failed to delete photo. Please try again.");
+    }
+  }
+
+  async updatePhoto(id: string, updates: Partial<Photo>): Promise<void> {
+    try {
+      const docRef = doc(db, "photos", id);
+
+      // Build update data without undefined fields
+      const updateData: Record<string, unknown> = {
+        updatedAt: serverTimestamp(),
+      };
+
+      // Add optional fields only if they have values
+      if (updates.title !== undefined) updateData.title = updates.title;
+      if (updates.url !== undefined) updateData.url = updates.url;
+      if (updates.thumbnailUrl !== undefined) updateData.thumbnailUrl = updates.thumbnailUrl;
+      if (updates.caption !== undefined) updateData.caption = updates.caption;
+      if (updates.tags !== undefined) updateData.tags = updates.tags;
+      if (updates.isPinned !== undefined) updateData.isPinned = updates.isPinned;
+      if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
+      if (updates.width !== undefined) updateData.width = updates.width;
+      if (updates.height !== undefined) updateData.height = updates.height;
+      if (updates.size !== undefined) updateData.size = updates.size;
+      if (updates.mimeType !== undefined) updateData.mimeType = updates.mimeType;
+
+      await updateDoc(docRef, updateData);
+    } catch (error) {
+      console.error("Failed to update photo in Firestore:", error);
+      throw new Error("Failed to update photo. Please try again.");
     }
   }
 
@@ -501,21 +561,70 @@ export class FirestoreAdapter implements StorageAdapter {
       // For production, implement individual link CRUD operations
       const savePromises = links.map(async (link) => {
         const docRef = doc(db, "links", link.id);
-        await setDoc(docRef, {
-          ...link,
+
+        // Build link data without undefined fields
+        const linkData: Record<string, unknown> = {
+          url: link.url,
+          title: link.title,
+          domain: link.domain,
+          isPinned: link.isPinned,
           userId: this.userId,
           createdAt:
             link.createdAt instanceof Date
               ? Timestamp.fromDate(link.createdAt)
               : serverTimestamp(),
           updatedAt: serverTimestamp(),
-        });
+        };
+
+        // Add optional fields only if they have values
+        if (link.description !== undefined) linkData.description = link.description;
+        if (link.favicon !== undefined) linkData.favicon = link.favicon;
+        if (link.image !== undefined) linkData.image = link.image;
+        if (link.folderId !== undefined) linkData.folderId = link.folderId;
+
+        await setDoc(docRef, linkData);
       });
 
       await Promise.all(savePromises);
     } catch (error) {
       console.error("Failed to save links to Firestore:", error);
       throw new Error("Failed to save links. Please try again.");
+    }
+  }
+
+  async deleteLink(id: string): Promise<void> {
+    try {
+      const docRef = doc(db, "links", id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error("Failed to delete link from Firestore:", error);
+      throw new Error("Failed to delete link. Please try again.");
+    }
+  }
+
+  async updateLink(id: string, updates: Partial<Link>): Promise<void> {
+    try {
+      const docRef = doc(db, "links", id);
+
+      // Build update data without undefined fields
+      const updateData: Record<string, unknown> = {
+        updatedAt: serverTimestamp(),
+      };
+
+      // Add optional fields only if they have values
+      if (updates.url !== undefined) updateData.url = updates.url;
+      if (updates.title !== undefined) updateData.title = updates.title;
+      if (updates.description !== undefined) updateData.description = updates.description;
+      if (updates.favicon !== undefined) updateData.favicon = updates.favicon;
+      if (updates.image !== undefined) updateData.image = updates.image;
+      if (updates.domain !== undefined) updateData.domain = updates.domain;
+      if (updates.isPinned !== undefined) updateData.isPinned = updates.isPinned;
+      if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
+
+      await updateDoc(docRef, updateData);
+    } catch (error) {
+      console.error("Failed to update link in Firestore:", error);
+      throw new Error("Failed to update link. Please try again.");
     }
   }
 
@@ -533,6 +642,147 @@ export class FirestoreAdapter implements StorageAdapter {
     } catch (error) {
       console.error("Failed to delete links by folder from Firestore:", error);
       throw new Error("Failed to delete links. Please try again.");
+    }
+  }
+
+  // Labels operations
+  async getLabels(): Promise<Label[]> {
+    try {
+      const q = query(
+        collection(db, "labels"),
+        where("userId", "==", this.userId)
+      );
+      const snapshot = await getDocs(q);
+
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id,
+          createdAt: this.timestampToString(data.createdAt),
+          updatedAt: this.timestampToString(data.updatedAt),
+        } as Label;
+      });
+    } catch (error) {
+      console.error("Failed to get labels from Firestore:", error);
+      throw new Error("Failed to load labels. Please try again.");
+    }
+  }
+
+  async getLabel(id: string): Promise<Label | null> {
+    try {
+      const docRef = doc(db, "labels", id);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        return null;
+      }
+
+      const data = docSnap.data();
+
+      // Verify ownership
+      if (data.userId !== this.userId) {
+        return null;
+      }
+
+      return {
+        ...data,
+        id: docSnap.id,
+        createdAt: this.timestampToString(data.createdAt),
+        updatedAt: this.timestampToString(data.updatedAt),
+      } as Label;
+    } catch (error) {
+      console.error("Failed to get label from Firestore:", error);
+      return null;
+    }
+  }
+
+  async createLabel(labelInput: LabelInput): Promise<Label> {
+    try {
+      const id = this.generateId();
+      const docRef = doc(db, "labels", id);
+
+      // Remove undefined fields (Firestore doesn't support undefined)
+      const labelData: Record<string, unknown> = {
+        userId: this.userId,
+        name: labelInput.name,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      // Only add optional fields if they have values
+      if (labelInput.color !== undefined) {
+        labelData.color = labelInput.color;
+      }
+
+      await setDoc(docRef, labelData);
+
+      // Return the label with ISO string timestamps
+      const now = new Date().toISOString();
+      return {
+        ...labelInput,
+        id,
+        userId: this.userId,
+        createdAt: now,
+        updatedAt: now,
+      };
+    } catch (error) {
+      console.error("Failed to create label in Firestore:", error);
+      throw new Error("Failed to create label. Please try again.");
+    }
+  }
+
+  async updateLabel(id: string, updates: LabelUpdate): Promise<Label> {
+    try {
+      const docRef = doc(db, "labels", id);
+
+      // Verify ownership before updating
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists() || docSnap.data().userId !== this.userId) {
+        throw new Error("Label not found or access denied");
+      }
+
+      // Remove undefined fields (Firestore doesn't support undefined)
+      const updateData: Record<string, unknown> = {
+        updatedAt: serverTimestamp(),
+      };
+
+      // Only add fields that are not undefined
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.color !== undefined) updateData.color = updates.color;
+
+      await updateDoc(docRef, updateData);
+
+      // Return updated label
+      const updatedSnap = await getDoc(docRef);
+      const data = updatedSnap.data()!;
+
+      return {
+        ...data,
+        id: updatedSnap.id,
+        createdAt: this.timestampToString(data.createdAt),
+        updatedAt: this.timestampToString(data.updatedAt),
+      } as Label;
+    } catch (error) {
+      console.error("Failed to update label in Firestore:", error);
+      throw new Error("Failed to update label. Please try again.");
+    }
+  }
+
+  async deleteLabel(id: string): Promise<void> {
+    try {
+      const docRef = doc(db, "labels", id);
+
+      // Verify ownership before deleting
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists() || docSnap.data().userId !== this.userId) {
+        throw new Error("Label not found or access denied");
+      }
+
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error("Failed to delete label from Firestore:", error);
+      throw new Error("Failed to delete label. Please try again.");
     }
   }
 }

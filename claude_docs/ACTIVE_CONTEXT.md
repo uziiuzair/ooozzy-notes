@@ -1,7 +1,7 @@
 # Active Context
 
-**Last Updated**: 2025-11-30 (Optimistic folder creation + Framer Motion animations complete)
-**Current Session Focus**: UX improvements - instant folder creation and smooth animations
+**Last Updated**: 2025-12-01 (Edit modals for cards and folders + bookmark icon replacement)
+**Current Session Focus**: Content editing UX - inline edit modals and visual polish
 
 ## Task Tracker
 
@@ -26,9 +26,100 @@
 
 ## Current Work
 
-### Recently Completed (Latest Session)
+### Recently Completed (Latest Session - 2025-12-01)
 
-- ✅ **Optimistic Folder Creation with Inline Naming - COMPLETE**
+- ✅ **Edit Modals for Cards and Folders + Bookmark Icon Replacement - COMPLETE**
+  - **Problem**: No way to edit content (notes, links, photos, folders) after creation; pin emoji (📌) didn't match design system
+  - **Solution**: Created EditCardModal and EditFolderModal organisms + replaced emoji with SVG bookmark icon
+
+  - **Implementation**:
+    - **EditCardModal** (NEW organism):
+      - Unified modal for editing notes, links, and photos
+      - Type-aware form fields (title for all, URL for links, photo upload for photos)
+      - Dynamic modal title based on content type
+      - Photo preview with replace functionality
+      - Props: isOpen, onClose, item, type ("note" | "link" | "photo"), onSave
+
+    - **EditFolderModal** (NEW organism):
+      - Edit folder name and label assignments
+      - Checkbox UI for label selection with color badges
+      - Selected labels preview with color indicators
+      - Empty state when no labels exist
+      - Props: isOpen, onClose, folder, labels, onSave
+
+    - **Context Menu Integration**:
+      - Added "Edit" option to ContentGrid context menu (between "View" and "Pin")
+      - Added "Edit Folder" option to folder context menu (above "Edit Labels")
+      - Edit icon (pencil) consistent across both menus
+
+    - **DashboardTemplate Handlers**:
+      - handleNoteEdit, handlePhotoEdit, handleLinkEdit - Open EditCardModal with correct type
+      - handleFolderEdit - Open EditFolderModal
+      - handleCardSave - Save changes with type-specific update logic
+      - handleFolderSave - Save folder name and label changes
+      - Error handling with AlertModal fallback
+
+    - **Bookmark Icon Replacement**:
+      - Replaced 📌 emoji with Heroicons bookmark SVG in 3 files
+      - LinkCard.tsx, NoteCard.tsx - Pin indicator badges (size-4)
+      - PhotoPage.tsx - Pin button with icon + text (size-5)
+      - Consistent styling with currentColor and Tailwind size utilities
+
+  - **Files Created**:
+    - src/components/organisms/EditCardModal.tsx - NEW unified edit modal for content
+    - src/components/organisms/EditFolderModal.tsx - NEW folder edit modal
+
+  - **Files Modified**:
+    - src/components/organisms/ContentGrid.tsx - Added edit props, handler, and menu item
+    - src/components/templates/DashboardTemplate.tsx - Integrated modals, handlers, passed props to ContentGrid
+    - src/components/molecules/LinkCard.tsx - Replaced emoji with SVG
+    - src/components/molecules/NoteCard.tsx - Replaced emoji with SVG
+    - src/app/photo/[id]/page.tsx - Replaced emoji with SVG, improved button layout
+
+  - **User Experience**:
+    - Before: No way to edit after creation, had to delete and recreate; emoji pins inconsistent
+    - After: Right-click any card → "Edit" → Modal opens → Edit fields → Save changes instantly
+    - Folders: Right-click → "Edit Folder" → Edit name and labels → Save
+    - Pin icons now use clean SVG bookmarks matching design system
+
+- ✅ **Link Metadata Refresh + LoadingBars Component - COMPLETE** (Previous Session)
+  - **Problem**: No way to refresh link metadata/preview after initial fetch; loading states used inconsistent UI patterns
+  - **Solution**: Context menu refresh option + reusable LoadingBars component with Framer Motion animations
+
+  - **Implementation**:
+    - **Refresh Metadata Feature**:
+      - Added "Refresh Metadata" option to link context menu (right-click)
+      - Created `refreshLinkMetadata` function in LinksProvider
+      - Tracks loading state with `loadingMetadataIds` Set for real-time UI updates
+      - Re-fetches title, description, favicon, image, domain from URL
+      - Loading state stops when fetch completes (success or failure)
+
+    - **LoadingBars Component** (NEW atom):
+      - Three vertical bars with staggered Framer Motion animations
+      - Bars animate from 33% to 100% height (scaleY: [0.33, 1, 0.33])
+      - Staggered delays: 0ms, 150ms, 300ms for wave effect
+      - Three sizes: sm (default), md, lg
+      - Customizable colors and labels
+      - Elegant pill-shaped container with backdrop blur
+
+    - **Modal System Cleanup**:
+      - Fixed double modal bug: Removed duplicate modal logic from ContentGrid
+      - Single source of truth: DashboardTemplate handles all modal displays
+      - Context menu now just calls callbacks, no direct modal rendering
+
+  - **Files Modified**:
+    - src/providers/LinksProvider.tsx - Added loadingMetadataIds state + refreshLinkMetadata function
+    - src/components/atoms/LoadingBars.tsx - NEW reusable loading component
+    - src/components/molecules/LinkCard.tsx - Integrated LoadingBars, added "No preview available" message
+    - src/components/organisms/ContentGrid.tsx - Added refresh handler, removed duplicate modals, pass loading state
+    - src/components/templates/DashboardTemplate.tsx - Added handleLinkRefreshMetadata with error handling
+
+  - **User Experience**:
+    - Before: No way to refresh metadata if preview failed; inconsistent loading spinners
+    - After: Right-click → "Refresh Metadata" → Elegant loading bars → Updated preview or "No preview available"
+    - Loading states now consistent across app (top-right badge + preview overlay)
+
+- ✅ **Optimistic Folder Creation with Inline Naming - COMPLETE** (Previous Session)
   - **Problem**: Folder creation had 500-1000ms delay waiting for Firestore/DB confirmation; no way to name folders during creation
   - **Solution**: Optimistic updates with instant UI feedback + inline text input for naming
 
@@ -110,6 +201,13 @@
 - ✅ **Inline folder naming** with keyboard navigation (Enter/Escape)
 - ✅ **Framer Motion animations** - staggered fade-in-up for all content
 - ✅ **Interactive hover/tap effects** on FolderCard (scale, transitions)
+- ✅ **Link metadata refresh** - context menu option to re-fetch previews
+- ✅ **LoadingBars component** - reusable elegant loading indicator with Framer Motion
+- ✅ **Consistent loading states** - top-right badge + preview overlay for links
+- ✅ **Modal system cleanup** - single source of truth, no duplicate modals
+- ✅ **Edit modals** - EditCardModal (notes/links/photos) and EditFolderModal (folders + labels)
+- ✅ **Edit context menu integration** - "Edit" option in all context menus
+- ✅ **Bookmark SVG icons** - replaced 📌 emoji with clean Heroicons bookmark SVG
 
 ## Next Steps
 
@@ -138,7 +236,12 @@
 - **Optimistic Updates**: Pattern = generate temp ID → add to state → replace on success → rollback on error
 - **Framer Motion**: Use index-based delays for stagger (delay: index * 0.1), not variant propagation
 - **Animation Easing**: Custom cubic-bezier [0.25, 0.46, 0.45, 0.94] for buttery feel
-- **Current Rung**: 0.5 (Firebase Integration Complete + UX Polish)
+- **Loading States**: Use LoadingBars component with appropriate size/label props for consistency
+- **Loading State Tracking**: Use Set<string> for efficient ID lookups, update in .finally() to catch all cases
+- **Modal Pattern**: DashboardTemplate = single source of truth for modals, organisms just call callbacks
+- **Edit Modal Pattern**: Type-aware EditCardModal for notes/links/photos, dedicated EditFolderModal for folders
+- **Icon Pattern**: Use Heroicons SVG with currentColor and Tailwind size-* utilities (not emojis)
+- **Current Rung**: 0.5 (Firebase Integration Complete + UX Polish + Content Editing)
 - **Build Status**: All checks passing ✅
 
 ### Testing Checklist

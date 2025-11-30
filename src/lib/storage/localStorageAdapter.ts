@@ -3,12 +3,14 @@ import { Note, NoteInput, NoteUpdate } from "@/types/note";
 import { Folder, FolderInput, FolderUpdate } from "@/types/folder";
 import { Photo } from "@/types/photo";
 import { Link } from "@/types/link";
+import { Label, LabelInput, LabelUpdate } from "@/types/label";
 
 export class LocalStorageAdapter implements StorageAdapter {
   private readonly NOTES_KEY = "ooozzy_notes";
   private readonly FOLDERS_KEY = "ooozzy_folders";
   private readonly PHOTOS_KEY = "ooozzy_photos";
   private readonly LINKS_KEY = "ooozzy_links";
+  private readonly LABELS_KEY = "ooozzy_labels";
 
   // Helper methods
   private generateId(): string {
@@ -186,6 +188,20 @@ export class LocalStorageAdapter implements StorageAdapter {
     }
   }
 
+  async deletePhoto(id: string): Promise<void> {
+    const photos = await this.getPhotos();
+    const filteredPhotos = photos.filter((photo) => photo.id !== id);
+    await this.savePhotos(filteredPhotos);
+  }
+
+  async updatePhoto(id: string, updates: Partial<Photo>): Promise<void> {
+    const photos = await this.getPhotos();
+    const updatedPhotos = photos.map((photo) =>
+      photo.id === id ? { ...photo, ...updates } : photo
+    );
+    await this.savePhotos(updatedPhotos);
+  }
+
   async deletePhotosByFolder(folderId: string): Promise<void> {
     const photos = await this.getPhotos();
     const filteredPhotos = photos.filter(
@@ -214,9 +230,67 @@ export class LocalStorageAdapter implements StorageAdapter {
     }
   }
 
+  async deleteLink(id: string): Promise<void> {
+    const links = await this.getLinks();
+    const filteredLinks = links.filter((link) => link.id !== id);
+    await this.saveLinks(filteredLinks);
+  }
+
+  async updateLink(id: string, updates: Partial<Link>): Promise<void> {
+    const links = await this.getLinks();
+    const updatedLinks = links.map((link) =>
+      link.id === id ? { ...link, ...updates } : link
+    );
+    await this.saveLinks(updatedLinks);
+  }
+
   async deleteLinksByFolder(folderId: string): Promise<void> {
     const links = await this.getLinks();
     const filteredLinks = links.filter((link) => link.folderId !== folderId);
     await this.saveLinks(filteredLinks);
+  }
+
+  // Labels operations (Note: LocalStorage is for anonymous users, labels only work for authenticated users with Firestore)
+  async getLabels(): Promise<Label[]> {
+    // Labels are only supported for authenticated users in Firestore
+    // Return empty array for anonymous LocalStorage users
+    return [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getLabel(id: string): Promise<Label | null> {
+    // Labels are only supported for authenticated users in Firestore
+    return null;
+  }
+
+  async createLabel(labelInput: LabelInput): Promise<Label> {
+    // Labels are only supported for authenticated users in Firestore
+    // Return a mock label for type compatibility (this should never be called for anonymous users)
+    return {
+      ...labelInput,
+      id: this.generateId(),
+      userId: "anonymous",
+      createdAt: this.getCurrentTimestamp(),
+      updatedAt: this.getCurrentTimestamp(),
+    };
+  }
+
+  async updateLabel(id: string, updates: LabelUpdate): Promise<Label> {
+    // Labels are only supported for authenticated users in Firestore
+    // Return a mock label for type compatibility
+    return {
+      id,
+      userId: "anonymous",
+      name: updates.name || "Label",
+      color: updates.color,
+      createdAt: this.getCurrentTimestamp(),
+      updatedAt: this.getCurrentTimestamp(),
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async deleteLabel(id: string): Promise<void> {
+    // Labels are only supported for authenticated users in Firestore
+    // No-op for anonymous users
   }
 }

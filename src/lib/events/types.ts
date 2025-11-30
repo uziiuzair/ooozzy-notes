@@ -97,6 +97,13 @@ export type AppEvents = {
     timestamp: number;
   };
 
+  "photo:updated": {
+    photoId: string;
+    folderId: string | null;
+    fieldsUpdated: string[];
+    timestamp: number;
+  };
+
   // ============================================================
   // Link Events - Link management
   // ============================================================
@@ -116,6 +123,33 @@ export type AppEvents = {
     linkId: string;
     fromFolderId: string | null;
     toFolderId: string | null;
+    timestamp: number;
+  };
+
+  "link:updated": {
+    linkId: string;
+    folderId: string | null;
+    fieldsUpdated: string[];
+    timestamp: number;
+  };
+
+  // ============================================================
+  // Label Events - Label management
+  // ============================================================
+  "label:created": {
+    labelId: string;
+    name: string;
+    timestamp: number;
+  };
+
+  "label:updated": {
+    labelId: string;
+    fieldsUpdated: string[];
+    timestamp: number;
+  };
+
+  "label:deleted": {
+    labelId: string;
     timestamp: number;
   };
 

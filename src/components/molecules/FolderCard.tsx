@@ -1,11 +1,13 @@
 import { FC, useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { Typography } from "@/components/atoms/Typography";
 import { Folder } from "@/types/folder";
 import { Note } from "@/types/note";
 import { Photo } from "@/types/photo";
 import { truncateText, stripHtmlForPreview } from "@/lib/utils";
 import { useProximityEffect } from "@/hooks/useProximityEffect";
+import { useLabels } from "@/hooks/useLabels";
 import clsx from "clsx";
 
 interface FolderCardProps {
@@ -21,6 +23,7 @@ interface FolderCardProps {
     folderId: string,
     itemType: "note" | "photo" | "link"
   ) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   isActive?: boolean;
 }
 
@@ -33,10 +36,15 @@ export const FolderCard: FC<FolderCardProps> = ({
   onEdit,
   onDelete,
   onDrop,
+  onContextMenu,
   isActive = false,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const { ref, proximity } = useProximityEffect(200);
+  const { getLabelsByIds } = useLabels();
+
+  // Get labels for this folder
+  const folderLabels = folder.labelIds ? getLabelsByIds(folder.labelIds) : [];
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleEdit = (e: React.MouseEvent) => {
@@ -86,8 +94,19 @@ export const FolderCard: FC<FolderCardProps> = ({
     setIsDragOver(false);
   };
 
-  // Get up to 4 notes for preview
-  const previewNotes = notes.slice(0, 4);
+  // Combine all content and get up to 4 items for preview
+  type PreviewItem =
+    | { type: "note"; data: Note }
+    | { type: "photo"; data: Photo }
+    | { type: "link"; data: (typeof links)[0] };
+
+  const allContent: PreviewItem[] = [
+    ...notes.map((note) => ({ type: "note" as const, data: note })),
+    ...photos.map((photo) => ({ type: "photo" as const, data: photo })),
+    ...links.map((link) => ({ type: "link" as const, data: link })),
+  ];
+
+  const previewItems = allContent.slice(0, 4);
 
   // Calculate directional shadow based on mouse position
   // const shadowX = proximity.intensity > 0 ? (proximity.x - 50) / 10 : 0;
@@ -120,8 +139,9 @@ export const FolderCard: FC<FolderCardProps> = ({
   return (
     <motion.div
       ref={ref}
-      className="relative group cursor-pointer"
+      className="relative group cursor-pointer h-full"
       onClick={onClick}
+      onContextMenu={onContextMenu}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       onDragEnter={handleDragEnter}
@@ -133,7 +153,7 @@ export const FolderCard: FC<FolderCardProps> = ({
       {/* Outer container with proximity effect - acts as border */}
       <motion.div
         className={clsx(
-          "relative w-full p-px rounded-lg border border-slate-200 transition-all duration-300",
+          "relative w-full h-full p-px rounded-lg border border-slate-200 transition-all duration-300",
           {
             "ring-2 ring-gray-400": isActive,
             "ring-2 ring-blue-500": isDragOver,
@@ -180,32 +200,71 @@ export const FolderCard: FC<FolderCardProps> = ({
             </div>
           )}
 
-          {/* Notes Preview Grid */}
+          {/* Content Preview Grid */}
           <div className="p-4">
             <div className="grid grid-cols-4 gap-2 h-full">
               {[0, 1, 2, 3].map((index) => {
-                const note = previewNotes[index];
+                const item = previewItems[index];
                 return (
                   <div
                     key={index}
                     className={clsx(
-                      "rounded-xl aspect-square p-3 overflow-hidden",
+                      "rounded-xl aspect-square overflow-hidden",
                       {
-                        "bg-white/50 border border-gray-200": note,
+                        "bg-white/50 border border-gray-200": item,
                         "bg-gray-100/30 border border-dashed border-gray-300":
-                          !note,
+                          !item,
                       }
                     )}
                   >
-                    {note ? (
-                      <div className="h-full flex flex-col">
-                        <div className="text-xs font-medium text-gray-900 line-clamp-1 mb-1">
-                          {note.title || "Untitled"}
-                        </div>
-                        <div className="text-xs text-gray-500 line-clamp-3 leading-relaxed">
-                          {truncateText(stripHtmlForPreview(note.content), 10)}
-                        </div>
-                      </div>
+                    {item ? (
+                      <>
+                        {item.type === "note" && (
+                          <div className="h-full flex flex-col p-3">
+                            <div className="text-xs font-medium text-gray-900 line-clamp-1 mb-1">
+                              {item.data.title || "Untitled"}
+                            </div>
+                            <div className="text-xs text-gray-500 line-clamp-3 leading-relaxed">
+                              {truncateText(
+                                stripHtmlForPreview(item.data.content),
+                                10
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {item.type === "photo" && (
+                          <div className="h-full w-full relative">
+                            <Image
+                              src={item.data.thumbnailUrl || item.data.url}
+                              alt={item.data.title}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 768px) 25vw, (max-width: 1200px) 20vw, 15vw"
+                            />
+                          </div>
+                        )}
+                        {item.type === "link" && (
+                          <div className="h-full flex flex-col p-3 bg-gradient-to-br from-blue-50 to-indigo-50">
+                            <svg
+                              className="w-4 h-4 text-blue-500 mb-1"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                              />
+                            </svg>
+                            <div className="text-xs font-medium text-gray-900 line-clamp-2">
+                              {item.data.title ||
+                                new URL(item.data.url).hostname}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="h-full flex items-center justify-center">
                         <div className="w-8 h-8 rounded-lg bg-gray-200/30" />
@@ -218,29 +277,59 @@ export const FolderCard: FC<FolderCardProps> = ({
           </div>
 
           {/* Folder Name at Bottom */}
-          <div className="w-full h-full bg-gradient-to-t from-white via-white to-transparent pb-3 px-4">
-            <Typography variant="h4" className="font-semibold truncate">
+          <div className="w-full h-full flex flex-col gap-2 bg-gradient-to-t from-white via-white to-transparent pb-3 px-4">
+            <Typography variant="h4" className="font-semibold truncate text-lg">
               {folder.name}
             </Typography>
-            <div className="flex items-center gap-2">
-              <Typography variant="caption" className="text-gray-500">
-                {notes.length} {notes.length === 1 ? "note" : "notes"}
-              </Typography>
-              {photos.length > 0 && (
-                <>
-                  <span className="text-gray-400">•</span>
-                  <Typography variant="caption" className="text-gray-500">
-                    {photos.length} {photos.length === 1 ? "photo" : "photos"}
-                  </Typography>
-                </>
-              )}
-              {links.length > 0 && (
-                <>
-                  <span className="text-gray-400">•</span>
-                  <Typography variant="caption" className="text-gray-500">
-                    {links.length} {links.length === 1 ? "link" : "links"}
-                  </Typography>
-                </>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Typography variant="caption" className="text-gray-500">
+                  {notes.length} {notes.length === 1 ? "note" : "notes"}
+                </Typography>
+                {photos.length > 0 && (
+                  <>
+                    <span className="text-gray-400">•</span>
+                    <Typography variant="caption" className="text-gray-500">
+                      {photos.length} {photos.length === 1 ? "photo" : "photos"}
+                    </Typography>
+                  </>
+                )}
+                {links.length > 0 && (
+                  <>
+                    <span className="text-gray-400">•</span>
+                    <Typography variant="caption" className="text-gray-500">
+                      {links.length} {links.length === 1 ? "link" : "links"}
+                    </Typography>
+                  </>
+                )}
+              </div>
+
+              {/* Label Badges */}
+              {folderLabels.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {folderLabels.slice(0, 3).map((label) => (
+                    <span
+                      key={label.id}
+                      className="px-2 py-0.5 rounded-full text-xs font-medium bg-electric-violet/10 text-electric-violet border border-electric-violet/20"
+                      style={
+                        label.color
+                          ? {
+                              backgroundColor: `${label.color}20`,
+                              borderColor: `${label.color}40`,
+                              color: label.color,
+                            }
+                          : undefined
+                      }
+                    >
+                      {label.name}
+                    </span>
+                  ))}
+                  {folderLabels.length > 3 && (
+                    <span className="px-2 py-0.5 text-xs text-gray-500">
+                      +{folderLabels.length - 3}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>
