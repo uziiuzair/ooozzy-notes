@@ -73,7 +73,7 @@ export const NoteCard: FC<NoteCardProps> = ({
   return (
     <>
       <Card
-        className="relative group cursor-pointer flex flex-col"
+        className="relative group cursor-pointer flex flex-col hover:-translate-y-1 transition-all duration-300"
         onClick={onClick}
         onContextMenu={handleContextMenu}
         hoverable

@@ -4,8 +4,7 @@ import { FC, useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { ContentGrid } from "@/components/organisms/ContentGrid";
 import { FolderCard } from "@/components/molecules/FolderCard";
-import { FolderNameInput } from "@/components/molecules/FolderNameInput";
-import { LabelSelector } from "@/components/molecules/LabelSelector";
+import { CreateFolderModal } from "@/components/molecules/CreateFolderModal";
 import { SearchBar } from "@/components/molecules/SearchBar";
 import { Button } from "@/components/atoms/Button";
 import { Typography } from "@/components/atoms/Typography";
@@ -33,6 +32,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 import Logo from "../../../public/Logo.svg";
+import { LabelSelector } from "@/components/molecules/LabelSelector";
 
 export const DashboardTemplate: FC = () => {
   const router = useRouter();
@@ -58,8 +58,7 @@ export const DashboardTemplate: FC = () => {
   const [, setDraggedNote] = useState<Note | null>(null);
   const [, setDraggedPhoto] = useState<Photo | null>(null);
   const [, setDraggedLink] = useState<Link | null>(null);
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-  const [newFolderLabelIds, setNewFolderLabelIds] = useState<string[]>([]);
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [folderContextMenu, setFolderContextMenu] = useState<{
     x: number;
     y: number;
@@ -423,7 +422,10 @@ export const DashboardTemplate: FC = () => {
     setFolderContextMenu(null);
   };
 
-  const handleCardSave = async (id: string, updates: Partial<Note | Photo | Link>) => {
+  const handleCardSave = async (
+    id: string,
+    updates: Partial<Note | Photo | Link>
+  ) => {
     try {
       if (editCardModal.type === "note") {
         await updateNote(id, updates as Partial<Note>);
@@ -459,23 +461,15 @@ export const DashboardTemplate: FC = () => {
     }
   };
 
-  const handleFolderCreate = async (name: string) => {
+  const handleFolderCreate = async (name: string, labelIds: string[]) => {
     try {
       await createFolder({
         name,
-        labelIds: newFolderLabelIds.length > 0 ? newFolderLabelIds : undefined,
+        labelIds: labelIds.length > 0 ? labelIds : undefined,
       });
-      setIsCreatingFolder(false);
-      setNewFolderLabelIds([]); // Reset label selection
     } catch (error) {
       console.error("Failed to create folder:", error);
-      setIsCreatingFolder(false);
     }
-  };
-
-  const handleFolderCreateCancel = () => {
-    setIsCreatingFolder(false);
-    setNewFolderLabelIds([]); // Reset label selection
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -788,44 +782,30 @@ export const DashboardTemplate: FC = () => {
                 <Typography variant="h3" className="font-semibold">
                   Folders
                 </Typography>
-                {isCreatingFolder ? (
-                  <div className="flex flex-col gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200 w-full max-w-md">
-                    <FolderNameInput
-                      onConfirm={handleFolderCreate}
-                      onCancel={handleFolderCreateCancel}
-                      placeholder="Folder name..."
-                    />
-                    <LabelSelector
-                      selectedLabelIds={newFolderLabelIds}
-                      onSelectionChange={setNewFolderLabelIds}
-                    />
-                  </div>
-                ) : (
-                  <Button
-                    onClick={() => setIsCreatingFolder(true)}
-                    variant="secondary"
-                    size="sm"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={1.5}
-                        stroke="currentColor"
-                        className="size-4"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 4.5v15m7.5-7.5h-15"
-                        />
-                      </svg>
+                <Button
+                  onClick={() => setIsCreateFolderModalOpen(true)}
+                  variant="secondary"
+                  size="sm"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                      className="size-4"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 4.5v15m7.5-7.5h-15"
+                      />
+                    </svg>
 
-                      <span>New Folder</span>
-                    </div>
-                  </Button>
-                )}
+                    <span>New Folder</span>
+                  </div>
+                </Button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
@@ -916,7 +896,9 @@ export const DashboardTemplate: FC = () => {
           y={folderContextMenu.y}
           onClose={() => setFolderContextMenu(null)}
         >
-          <ContextMenuItem onClick={() => handleFolderEdit(folderContextMenu.folder)}>
+          <ContextMenuItem
+            onClick={() => handleFolderEdit(folderContextMenu.folder)}
+          >
             <div className="flex items-center gap-2">
               <svg
                 className="w-4 h-4"
@@ -1038,10 +1020,11 @@ export const DashboardTemplate: FC = () => {
       {/* Edit Modals */}
       <EditCardModal
         isOpen={editCardModal.isOpen}
-        onClose={() => setEditCardModal({ isOpen: false, item: null, type: null })}
+        onClose={() =>
+          setEditCardModal({ isOpen: false, item: null, type: null })
+        }
         item={editCardModal.item}
         type={editCardModal.type as "note" | "photo" | "link"}
-        labels={labels}
         onSave={handleCardSave}
       />
 
@@ -1050,6 +1033,12 @@ export const DashboardTemplate: FC = () => {
         onClose={() => setEditFolderModal({ isOpen: false, folder: null })}
         folder={editFolderModal.folder}
         onSave={handleFolderSave}
+      />
+
+      <CreateFolderModal
+        isOpen={isCreateFolderModalOpen}
+        onClose={() => setIsCreateFolderModalOpen(false)}
+        onSave={handleFolderCreate}
       />
     </div>
   );

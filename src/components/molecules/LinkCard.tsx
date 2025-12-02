@@ -63,9 +63,9 @@ export function LinkCard({
   return (
     <Card
       className={cn(
-        "group relative cursor-pointer transition-all duration-200 hover:shadow-lg",
-        "bg-white dark:bg-gray-800",
-        isSelected && "ring-2 ring-blue-500 shadow-lg"
+        "group relative cursor-pointer transition-all duration-200 hover:-translate-y-1",
+        "bg-white",
+        isSelected && "ring-2 ring-blue-500"
       )}
       onClick={onSelect}
       onContextMenu={onContextMenu}
@@ -94,7 +94,7 @@ export function LinkCard({
       )}
 
       {/* Preview image or favicon */}
-      <div className="relative h-40 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-t-lg overflow-hidden">
+      <div className="relative h-40 bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-lg overflow-hidden">
         {link.image && !imageError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -108,7 +108,7 @@ export function LinkCard({
           <div className="flex flex-col items-center justify-center h-full gap-2">
             {/* Show loading animation while metadata is being fetched */}
             {isLoadingMetadata && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
                 <LoadingBars label="loading preview" size="md" />
               </div>
             )}
@@ -142,7 +142,7 @@ export function LinkCard({
 
             {/* No preview message - only show when loading is complete and no image */}
             {!isLoadingMetadata && !link.image && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 z-10">
+              <span className="text-xs text-gray-500 mt-1 z-10">
                 No preview available
               </span>
             )}
@@ -167,7 +167,7 @@ export function LinkCard({
         {link.description && (
           <Typography
             variant="body"
-            className="text-gray-600 dark:text-gray-400 mb-2 line-clamp-2 truncate w-full text-xs"
+            className="text-gray-600 mb-2 line-clamp-2 truncate w-full text-xs"
           >
             {link.description
               .replace(/&#x27;/g, "'")
@@ -213,7 +213,7 @@ export function LinkCard({
       </div>
 
       {/* Hover overlay with actions */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-colors rounded-lg pointer-events-none" />
+      <div className="absolute inset-0 bg-black/0 transition-colors rounded-lg pointer-events-none" />
     </Card>
   );
 }

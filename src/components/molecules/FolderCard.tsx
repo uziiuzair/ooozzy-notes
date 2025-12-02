@@ -307,7 +307,7 @@ export const FolderCard: FC<FolderCardProps> = ({
               {/* Label Badges */}
               {folderLabels.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {folderLabels.slice(0, 3).map((label) => (
+                  {folderLabels.slice(0, 2).map((label) => (
                     <span
                       key={label.id}
                       className="px-2 py-0.5 rounded-full text-xs font-medium bg-electric-violet/10 text-electric-violet border border-electric-violet/20"
@@ -324,9 +324,9 @@ export const FolderCard: FC<FolderCardProps> = ({
                       {label.name}
                     </span>
                   ))}
-                  {folderLabels.length > 3 && (
+                  {folderLabels.length > 2 && (
                     <span className="px-2 py-0.5 text-xs text-gray-500">
-                      +{folderLabels.length - 3}
+                      +{folderLabels.length - 2}
                     </span>
                   )}
                 </div>

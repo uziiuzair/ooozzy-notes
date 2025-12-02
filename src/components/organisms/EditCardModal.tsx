@@ -7,8 +7,7 @@ import { Button } from "@/components/atoms/Button";
 import { Note } from "@/types/note";
 import { Link } from "@/types/link";
 import { Photo } from "@/types/photo";
-import { Label } from "@/types/label";
-import { LabelBadge } from "@/components/molecules/LabelBadge";
+import { LabelSelector } from "@/components/molecules/LabelSelector";
 
 type ContentItem = Note | Link | Photo;
 
@@ -17,7 +16,6 @@ interface EditCardModalProps {
   onClose: () => void;
   item: ContentItem | null;
   type: "note" | "link" | "photo";
-  labels?: Label[];
   onSave: (id: string, updates: Partial<ContentItem>) => void;
 }
 
@@ -26,7 +24,6 @@ export const EditCardModal: FC<EditCardModalProps> = ({
   onClose,
   item,
   type,
-  labels = [],
   onSave,
 }) => {
   const [title, setTitle] = useState("");
@@ -69,14 +66,6 @@ export const EditCardModal: FC<EditCardModalProps> = ({
     }
   };
 
-  const toggleLabel = (labelId: string) => {
-    setSelectedLabelIds((prev) =>
-      prev.includes(labelId)
-        ? prev.filter((id) => id !== labelId)
-        : [...prev, labelId]
-    );
-  };
-
   const handleSave = () => {
     if (!item) return;
 
@@ -89,7 +78,11 @@ export const EditCardModal: FC<EditCardModalProps> = ({
       (updates as Partial<Link>).url = url;
     }
 
-    if (type === "photo" && photoPreview && photoPreview !== (item as Photo).url) {
+    if (
+      type === "photo" &&
+      photoPreview &&
+      photoPreview !== (item as Photo).url
+    ) {
       (updates as Partial<Photo>).url = photoPreview;
     }
 
@@ -176,44 +169,10 @@ export const EditCardModal: FC<EditCardModalProps> = ({
 
         {/* Label Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Labels
-          </label>
-
-          {labels.length === 0 ? (
-            <p className="text-sm text-gray-500">No labels available</p>
-          ) : (
-            <div className="space-y-2">
-              {labels.map((label) => (
-                <label
-                  key={label.id}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedLabelIds.includes(label.id)}
-                    onChange={() => toggleLabel(label.id)}
-                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  />
-                  <LabelBadge label={label} size="sm" />
-                </label>
-              ))}
-            </div>
-          )}
-
-          {/* Selected Labels Preview */}
-          {selectedLabelIds.length > 0 && (
-            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-600 mb-2">Selected labels:</p>
-              <div className="flex flex-wrap gap-1.5">
-                {labels
-                  .filter((l) => selectedLabelIds.includes(l.id))
-                  .map((label) => (
-                    <LabelBadge key={label.id} label={label} size="sm" />
-                  ))}
-              </div>
-            </div>
-          )}
+          <LabelSelector
+            onSelectionChange={setSelectedLabelIds}
+            selectedLabelIds={selectedLabelIds}
+          />
         </div>
       </div>
     </Modal>
