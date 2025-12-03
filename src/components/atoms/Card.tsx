@@ -49,7 +49,7 @@ export const Card: FC<CardProps> = ({
     <div
       ref={ref}
       className={cn(
-        "relative p-px rounded-[9px] border border-slate-200 transition-all duration-300",
+        "relative p-px rounded-[10px] border border-slate-200 transition-all duration-300",
         hoverable && "hover:scale-[1.02] cursor-pointer",
         onClick && "cursor-pointer",
         className
