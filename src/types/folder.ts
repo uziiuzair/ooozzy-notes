@@ -1,6 +1,7 @@
 export interface Folder {
   id: string;
   name: string;
+  parentId?: string; // Reference to parent folder for nesting
   color?: string;
   icon?: string;
   labelIds?: string[]; // References to label IDs

@@ -259,6 +259,9 @@ export class FirestoreAdapter implements StorageAdapter {
       };
 
       // Only add optional fields if they have values
+      if (folderInput.parentId !== undefined) {
+        folderData.parentId = folderInput.parentId;
+      }
       if (folderInput.color !== undefined) {
         folderData.color = folderInput.color;
       }
@@ -302,6 +305,7 @@ export class FirestoreAdapter implements StorageAdapter {
 
       // Only add fields that are not undefined
       if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.parentId !== undefined) updateData.parentId = updates.parentId;
       if (updates.color !== undefined) updateData.color = updates.color;
       if (updates.icon !== undefined) updateData.icon = updates.icon;
       if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;

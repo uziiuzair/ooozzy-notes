@@ -6,6 +6,8 @@ import { ContentGrid } from "@/components/organisms/ContentGrid";
 import { FolderCard } from "@/components/molecules/FolderCard";
 import { CreateFolderModal } from "@/components/molecules/CreateFolderModal";
 import { SearchBar } from "@/components/molecules/SearchBar";
+import { AddNewDropdown } from "@/components/molecules/AddNewDropdown";
+import { Breadcrumb, BreadcrumbItem } from "@/components/molecules/Breadcrumb";
 import { Button } from "@/components/atoms/Button";
 import { Typography } from "@/components/atoms/Typography";
 import {
@@ -124,6 +126,40 @@ export const DashboardTemplate: FC = () => {
     isOpen: false,
     folder: null,
   });
+
+  // Helper function to build breadcrumb trail
+  const buildBreadcrumbs = (folderId: string | null): BreadcrumbItem[] => {
+    if (!folderId) {
+      return [{ id: null, label: "Home" }];
+    }
+
+    const trail: BreadcrumbItem[] = [];
+    let currentId: string | null = folderId;
+
+    // Build trail from current folder back to root
+    while (currentId) {
+      const folder = folders.find((f) => f.id === currentId);
+      if (!folder) break;
+
+      trail.unshift({ id: folder.id, label: folder.name });
+      currentId = folder.parentId || null;
+    }
+
+    // Add Home at the beginning
+    trail.unshift({ id: null, label: "Home" });
+    return trail;
+  };
+
+  // Get folders to display (only children of current folder)
+  const getVisibleFolders = (): Folder[] => {
+    if (currentFolderId) {
+      // Inside a folder - show only subfolders
+      return folders.filter((f) => f.parentId === currentFolderId);
+    } else {
+      // Root level - show only folders without a parent
+      return folders.filter((f) => !f.parentId);
+    }
+  };
 
   useEffect(() => {
     // Filter notes based on current folder
@@ -465,6 +501,7 @@ export const DashboardTemplate: FC = () => {
     try {
       await createFolder({
         name,
+        parentId: currentFolderId || undefined,
         labelIds: labelIds.length > 0 ? labelIds : undefined,
       });
     } catch (error) {
@@ -503,11 +540,6 @@ export const DashboardTemplate: FC = () => {
     setCurrentFolderId(folderId);
   };
 
-  const handleBackToRoot = () => {
-    // Exit the folder
-    setCurrentFolderId(null);
-  };
-
   const handleNoteDragStart = (note: Note) => {
     setDraggedNote(note);
   };
@@ -529,14 +561,40 @@ export const DashboardTemplate: FC = () => {
   const handleItemDrop = async (
     itemId: string,
     folderId: string | null,
-    itemType: "note" | "photo" | "link"
+    itemType: "note" | "photo" | "link" | "folder"
   ) => {
     if (itemType === "note") {
       await updateNote(itemId, { folderId: folderId || undefined });
     } else if (itemType === "photo") {
       await updatePhoto(itemId, { folderId: folderId || undefined });
-    } else {
+    } else if (itemType === "link") {
       await updateLink(itemId, { folderId: folderId || undefined });
+    } else if (itemType === "folder") {
+      // Check for circular nesting
+      const targetFolder = folders.find((f) => f.id === folderId);
+      const sourceFolder = folders.find((f) => f.id === itemId);
+
+      if (!targetFolder || !sourceFolder) return;
+
+      // Prevent circular nesting: check if target is a descendant of source
+      let checkId: string | null | undefined = targetFolder.parentId;
+      while (checkId) {
+        if (checkId === itemId) {
+          // Circular nesting detected!
+          setAlertModal({
+            isOpen: true,
+            title: "Invalid Move",
+            message: "Cannot move a folder into its own subfolder.",
+            variant: "warning",
+          });
+          return;
+        }
+        const parent = folders.find((f) => f.id === checkId);
+        checkId = parent?.parentId;
+      }
+
+      // Move folder by updating parentId
+      await updateFolder(itemId, { parentId: folderId || undefined });
     }
 
     // Refresh the view if needed
@@ -545,9 +603,10 @@ export const DashboardTemplate: FC = () => {
         setFilteredNotes((prev) => prev.filter((n) => n.id !== itemId));
       } else if (itemType === "photo") {
         setFilteredPhotos((prev) => prev.filter((p) => p.id !== itemId));
-      } else {
+      } else if (itemType === "link") {
         setFilteredLinks((prev) => prev.filter((l) => l.id !== itemId));
       }
+      // Note: folders will automatically update via state management
     }
   };
 
@@ -628,25 +687,6 @@ export const DashboardTemplate: FC = () => {
             />
 
             <div className="flex items-center justify-end">
-              <Button onClick={handleCreateNote} variant="ghost" size="sm">
-                <div className="flex items-center gap-2.5">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="size-4"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 4.5v15m7.5-7.5h-15"
-                    />
-                  </svg>
-                  <span>Note</span>
-                </div>
-              </Button>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -655,48 +695,12 @@ export const DashboardTemplate: FC = () => {
                 onChange={handlePhotoUpload}
                 className="hidden"
               />
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                variant="ghost"
-                size="sm"
-              >
-                <div className="flex items-center gap-2.5">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="size-4"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 4.5v15m7.5-7.5h-15"
-                    />
-                  </svg>
-                  <span>Photo</span>
-                </div>
-              </Button>
-              <Button onClick={handleAddLink} variant="ghost" size="sm">
-                <div className="flex items-center gap-2.5">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="size-4"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 4.5v15m7.5-7.5h-15"
-                    />
-                  </svg>
-                  <span>Link</span>
-                </div>
-              </Button>
+              <AddNewDropdown
+                onAddNote={handleCreateNote}
+                onAddPhoto={() => fileInputRef.current?.click()}
+                onAddLink={handleAddLink}
+                onAddFolder={() => setIsCreateFolderModalOpen(true)}
+              />
             </div>
           </div>
         </div>
@@ -714,18 +718,58 @@ export const DashboardTemplate: FC = () => {
       {/* Main Content */}
       <main className="max-w-[95rem] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentFolderId ? (
-          // Inside a folder - show folder header and notes
+          // Inside a folder - show breadcrumb, subfolders, and content
           <>
-            {/* Folder Header with Back Button */}
-            <div className="mb-6 flex items-center gap-4">
-              <Button onClick={handleBackToRoot} variant="ghost" size="sm">
-                ← Back
-              </Button>
-              <Typography variant="h3" className="font-semibold">
-                {folders.find((f) => f.id === currentFolderId)?.name ||
-                  "Folder"}
-              </Typography>
+            {/* Breadcrumb Navigation */}
+            <div className="mb-6">
+              <Breadcrumb
+                items={buildBreadcrumbs(currentFolderId)}
+                onNavigate={setCurrentFolderId}
+              />
             </div>
+
+            {/* Subfolders Grid */}
+            {getVisibleFolders().length > 0 && (
+              <div className="mb-8">
+                <div className="mb-4">
+                  <Typography
+                    variant="h4"
+                    className="font-semibold text-gray-700"
+                  >
+                    Folders
+                  </Typography>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {getVisibleFolders().map((folder, index) => (
+                    <motion.div
+                      key={folder.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.5,
+                        delay: index * 0.1,
+                        ease: [0.25, 0.46, 0.45, 0.94],
+                      }}
+                    >
+                      <FolderCard
+                        folder={folder}
+                        notes={notes.filter((n) => n.folderId === folder.id)}
+                        photos={photos.filter((p) => p.folderId === folder.id)}
+                        links={links.filter((l) => l.folderId === folder.id)}
+                        subfolders={folders.filter((f) => f.parentId === folder.id)}
+                        onClick={() => handleFolderClick(folder.id)}
+                        onDelete={() => handleFolderDelete(folder)}
+                        onDrop={handleItemDrop}
+                        onContextMenu={(e) =>
+                          handleFolderContextMenu(e, folder)
+                        }
+                        isActive={false}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Search Results Info */}
             {searchQuery && (
@@ -777,39 +821,15 @@ export const DashboardTemplate: FC = () => {
           // Root level - show folders and unfiled notes
           <>
             {/* Folders Grid */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
+            <div className="pb-4">
+              <div className="mb-4">
                 <Typography variant="h3" className="font-semibold">
                   Folders
                 </Typography>
-                <Button
-                  onClick={() => setIsCreateFolderModalOpen(true)}
-                  variant="secondary"
-                  size="sm"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                      className="size-4"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 4.5v15m7.5-7.5h-15"
-                      />
-                    </svg>
-
-                    <span>New Folder</span>
-                  </div>
-                </Button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-                {folders.map((folder, index) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {getVisibleFolders().map((folder, index) => (
                   <motion.div
                     key={folder.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -825,6 +845,7 @@ export const DashboardTemplate: FC = () => {
                       notes={notes.filter((n) => n.folderId === folder.id)}
                       photos={photos.filter((p) => p.folderId === folder.id)}
                       links={links.filter((l) => l.folderId === folder.id)}
+                      subfolders={folders.filter((f) => f.parentId === folder.id)}
                       onClick={() => handleFolderClick(folder.id)}
                       onDelete={() => handleFolderDelete(folder)}
                       onDrop={handleItemDrop}
@@ -836,8 +857,10 @@ export const DashboardTemplate: FC = () => {
               </div>
             </div>
 
+            <hr />
+
             {/* Unfiled Notes Section */}
-            <div>
+            <div className="pt-4">
               {/* Search Results Info */}
               {searchQuery && (
                 <div className="mb-6">

@@ -24,6 +24,7 @@ export const useFolders = () => {
         name: folderInput.name || "New Folder",
         color: folderInput.color,
         icon: folderInput.icon,
+        parentId: folderInput.parentId,
         createdAt: now,
         updatedAt: now,
       };
@@ -38,6 +39,7 @@ export const useFolders = () => {
           name: folderInput.name || "New Folder",
           color: folderInput.color,
           icon: folderInput.icon,
+          parentId: folderInput.parentId,
         });
 
         // Replace optimistic folder with real one from DB
@@ -99,21 +101,45 @@ export const useFolders = () => {
         setIsOperating(true);
         const adapter = getStorageAdapter(user?.uid);
 
-        // Get note count before deletion for event
+        // Recursively collect all descendant folder IDs
+        const getAllDescendantIds = (folderId: string): string[] => {
+          const children = folders.filter((f) => f.parentId === folderId);
+          const descendants = children.map((child) => child.id);
+          // Recursively get descendants of each child
+          children.forEach((child) => {
+            descendants.push(...getAllDescendantIds(child.id));
+          });
+          return descendants;
+        };
+
+        const descendantIds = getAllDescendantIds(id);
+        const allFolderIds = [id, ...descendantIds];
+
+        // Get total note count before deletion for event
         let noteCount = 0;
         if (deleteNotes) {
-          const notes = await adapter.getNotesByFolder(id);
-          noteCount = notes.length;
-          await adapter.deleteNotesByFolder(id);
+          for (const folderId of allFolderIds) {
+            const notes = await adapter.getNotesByFolder(folderId);
+            noteCount += notes.length;
+            await adapter.deleteNotesByFolder(folderId);
+          }
         }
 
+        // Delete all folders (children first, then parent)
+        for (const folderId of [...descendantIds].reverse()) {
+          await adapter.deleteFolder(folderId);
+        }
         await adapter.deleteFolder(id);
-        setFolders((prev) => prev.filter((folder) => folder.id !== id));
+
+        // Remove all deleted folders from state
+        setFolders((prev) =>
+          prev.filter((folder) => !allFolderIds.includes(folder.id))
+        );
 
         // Emit event
         emit("folder:deleted", {
           folderId: id,
-          noteCount,
+          noteCount: noteCount + descendantIds.length, // Include subfolders in count
           timestamp: Date.now(),
         });
       } catch (error) {
@@ -123,7 +149,7 @@ export const useFolders = () => {
         setIsOperating(false);
       }
     },
-    [setFolders, user, emit]
+    [folders, setFolders, user, emit]
   );
 
   const getFolderById = useCallback(

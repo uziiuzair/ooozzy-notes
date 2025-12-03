@@ -15,13 +15,14 @@ interface FolderCardProps {
   notes?: Note[];
   photos?: Photo[];
   links?: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  subfolders?: Folder[];
   onClick: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   onDrop?: (
     itemId: string,
     folderId: string,
-    itemType: "note" | "photo" | "link"
+    itemType: "note" | "photo" | "link" | "folder"
   ) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   isActive?: boolean;
@@ -32,6 +33,7 @@ export const FolderCard: FC<FolderCardProps> = ({
   notes = [],
   photos = [],
   links = [],
+  subfolders = [],
   onClick,
   onEdit,
   onDelete,
@@ -62,6 +64,16 @@ export const FolderCard: FC<FolderCardProps> = ({
     e.dataTransfer.dropEffect = "move";
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.stopPropagation();
+    // Set drag data for folder
+    e.dataTransfer.setData(
+      "application/json",
+      JSON.stringify({ id: folder.id, type: "folder" })
+    );
+    e.dataTransfer.effectAllowed = "move";
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -69,12 +81,22 @@ export const FolderCard: FC<FolderCardProps> = ({
     if (data) {
       try {
         const item = JSON.parse(data);
+
+        // Prevent dropping folder onto itself
+        if (item.type === "folder" && item.id === folder.id) {
+          setIsDragOver(false);
+          return;
+        }
+
         if (item.type === "photo") {
           // Handle photo drop
           onDrop?.(item.id, folder.id, "photo");
         } else if (item.type === "link") {
           // Handle link drop
           onDrop?.(item.id, folder.id, "link");
+        } else if (item.type === "folder") {
+          // Handle folder drop (move folder into this folder)
+          onDrop?.(item.id, folder.id, "folder");
         } else {
           // Handle note drop
           onDrop?.(item.id, folder.id, "note");
@@ -137,19 +159,24 @@ export const FolderCard: FC<FolderCardProps> = ({
         };
 
   return (
-    <motion.div
+    <div
       ref={ref}
       className="relative group cursor-pointer h-full"
-      onClick={onClick}
-      onContextMenu={onContextMenu}
+      draggable={true}
+      onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
-      whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-      whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
-      animate={isDragOver ? { scale: 1.05 } : { scale: 1 }}
     >
+      <motion.div
+        className="w-full h-full"
+        onClick={onClick}
+        onContextMenu={onContextMenu}
+        whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+        whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
+        animate={isDragOver ? { scale: 1.05 } : { scale: 1 }}
+      >
       {/* Outer container with proximity effect - acts as border */}
       <motion.div
         className={clsx(
@@ -302,6 +329,14 @@ export const FolderCard: FC<FolderCardProps> = ({
                     </Typography>
                   </>
                 )}
+                {subfolders.length > 0 && (
+                  <>
+                    <span className="text-gray-400">•</span>
+                    <Typography variant="caption" className="text-gray-500">
+                      {subfolders.length} {subfolders.length === 1 ? "folder" : "folders"}
+                    </Typography>
+                  </>
+                )}
               </div>
 
               {/* Label Badges */}
@@ -335,6 +370,7 @@ export const FolderCard: FC<FolderCardProps> = ({
           </div>
         </div>
       </motion.div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 };

@@ -132,6 +132,13 @@
             "maxLength": 50,
             "example": "Work Notes"
           },
+          "parentId": {
+            "type": "string | undefined",
+            "required": false,
+            "description": "Reference to parent folder for nested folder support",
+            "foreignKey": "folders.id",
+            "example": "770e8400-e29b-41d4-a716-446655440003"
+          },
           "color": {
             "type": "string | undefined",
             "required": false,
@@ -180,6 +187,16 @@
             "links": {
               "foreignKey": "folderId",
               "description": "Folder contains many links"
+            },
+            "childFolders": {
+              "foreignKey": "parentId",
+              "description": "Folder can contain many child folders (nested)"
+            }
+          },
+          "belongsTo": {
+            "parentFolder": {
+              "foreignKey": "parentId",
+              "description": "Folder optionally belongs to a parent folder"
             }
           }
         },
