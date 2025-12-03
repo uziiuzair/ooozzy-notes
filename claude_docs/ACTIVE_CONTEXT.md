@@ -1,7 +1,7 @@
 # Active Context
 
-**Last Updated**: 2025-12-01 (Edit modals for cards and folders + bookmark icon replacement)
-**Current Session Focus**: Content editing UX - inline edit modals and visual polish
+**Last Updated**: 2025-12-03 (File upload system complete with Firebase Storage integration)
+**Current Session Focus**: File management system - upload, storage, and display
 
 ## Task Tracker
 
@@ -26,9 +26,118 @@
 
 ## Current Work
 
-### Recently Completed (Latest Session - 2025-12-01)
+### Recently Completed (Latest Session - 2025-12-03)
 
-- ✅ **Edit Modals for Cards and Folders + Bookmark Icon Replacement - COMPLETE**
+- ✅ **File Upload System with Firebase Storage - COMPLETE**
+  - **Problem**: No way to upload and manage files (PDFs, videos, audio, documents); needed cloud storage integration
+  - **Solution**: Complete file upload system with Firebase Storage, global dropzone, background context menu, and comprehensive error handling
+
+  - **Implementation**:
+    - **Firebase Storage Setup**:
+      - Created `storage.rules` with authentication, 50MB file size limit, allowed file types
+      - Updated `firebase.json` to deploy storage rules alongside Firestore rules
+      - Storage path structure: `files/{userId}/{fileId}.{extension}`
+      - Temporary permissive rules for authenticated users (to be tightened)
+
+    - **Firestore Rules for Files Collection**:
+      - Added files collection security rules to `firestore.rules`
+      - Users can only read/write their own files (RLS pattern)
+      - Create requires userId match, update/delete restricted to file owner
+
+    - **File Type System** (NEW):
+      - `FileType` type alias to avoid conflict with browser's global `File` API
+      - Categories: document, video, audio, archive, other
+      - MIME type detection and categorization
+      - Size tracking and 50MB validation
+
+    - **FilesProvider and useFiles Hook** (NEW):
+      - Centralized file state management with React Context
+      - CRUD operations: uploadFile, deleteFile, updateFile, moveFileToFolder
+      - Optimistic updates with temp IDs
+      - Event bus integration: file:uploaded, file:deleted, file:updated, file:moved
+      - Loading states tracked with isOperating flag
+
+    - **FileCard Component** (NEW molecule):
+      - Visual file display with icon, name, size, date
+      - Type-based icons (document, video, audio, archive, other)
+      - Hover effects and drag-drop support
+      - Context menu integration
+      - Human-readable file sizes (KB, MB)
+
+    - **Global Dropzone System**:
+      - Created `DropzoneOverlay.tsx` component for visual feedback
+      - Integrated global drag-drop handlers in DashboardTemplate
+      - Drag counter for flicker prevention (dragenter/dragleave)
+      - Intelligent routing: images → Photos, other files → Files
+      - Multi-file upload support with batch processing
+      - Success/failure alerts with counts
+
+    - **Background Context Menu**:
+      - Right-click background areas shows create options
+      - Options: Note, Photo, Link, Upload, Folder
+      - Smart card detection using `target.closest()` to prevent conflicts
+      - Integrated with existing context menu system
+
+    - **Context Menu Integration**:
+      - Fixed dual context menu issue with `e.stopPropagation()`
+      - Fixed menu width constraint (min-w-[200px] instead of max-w)
+      - Unified NoteCard context menu with ContentGrid's comprehensive menu
+      - All cards now use consistent context menu system
+
+    - **Undefined Field Handling** (CRITICAL FIX):
+      - Firestore rejects undefined values in documents
+      - Filter out undefined fields before calling setDoc
+      - Pattern: Object.fromEntries + filter removes undefined values
+      - Fixed file upload failing when folderId is undefined
+      - Also logs extensive debugging information for troubleshooting
+
+    - **ContentGrid Integration**:
+      - Added FileCard rendering to ContentGrid
+      - File drag-drop into folders
+      - File context menu handlers
+      - Mixed content display (notes, photos, links, files)
+
+    - **AddNewDropdown Integration**:
+      - Added "Upload File" option with upload icon
+      - File input with multiple selection support
+      - Triggers file upload flow through FilesProvider
+
+  - **Files Created**:
+    - storage.rules - NEW Firebase Storage security rules
+    - src/types/file.ts - NEW FileType definitions and input types
+    - src/providers/FilesProvider.tsx - NEW file state management
+    - src/hooks/useFiles.ts - NEW file operations hook
+    - src/components/molecules/FileCard.tsx - NEW file display component
+    - src/components/molecules/DropzoneOverlay.tsx - NEW dropzone visual feedback
+
+  - **Files Modified**:
+    - firebase.json - Added storage rules deployment
+    - firestore.rules - Added files collection security rules
+    - src/lib/storage/firestoreAdapter.ts - Added uploadFile, deleteFile, updateFile methods + undefined field filtering
+    - src/components/organisms/ContentGrid.tsx - Added FileCard rendering and handlers + stopPropagation fix
+    - src/components/templates/DashboardTemplate.tsx - Global dropzone + background context menu + file handlers
+    - src/components/molecules/AddNewDropdown.tsx - Added Upload File option
+    - src/components/molecules/ContextMenu.tsx - Fixed width constraint (min-w instead of max-w)
+    - src/components/molecules/NoteCard.tsx - Removed internal context menu, forwarded to parent
+    - src/components/molecules/PhotoCard.tsx - Added stopPropagation to context menu
+
+  - **User Experience**:
+    - Before: No way to upload or manage files; context menus had conflicts and width issues
+    - After: Drag-drop files anywhere → Upload to Firebase Storage → Display in grid → Organize in folders
+    - Multi-file upload supported with batch processing
+    - Right-click background → Create menu with all options
+    - All context menus unified and consistent
+    - File uploads work with or without folder selection
+
+  - **Technical Highlights**:
+    - Firebase Storage integration with proper security rules
+    - Optimistic UI updates for instant feedback
+    - Event bus system for cross-component communication
+    - Type-safe file handling avoiding global `File` API conflicts
+    - Comprehensive error handling with user-friendly messages
+    - Extensive logging for debugging (can be removed later)
+
+- ✅ **Edit Modals for Cards and Folders + Bookmark Icon Replacement - COMPLETE** (Previous Session)
   - **Problem**: No way to edit content (notes, links, photos, folders) after creation; pin emoji (📌) didn't match design system
   - **Solution**: Created EditCardModal and EditFolderModal organisms + replaced emoji with SVG bookmark icon
 
@@ -193,9 +302,14 @@
 ### What's Working Now
 - ✅ Firebase Authentication (Email/Password + Google Sign-In)
 - ✅ Firestore CRUD operations with undefined field validation
+- ✅ **Firebase Storage integration** - file uploads with authentication and security rules
 - ✅ Hybrid storage (LocalStorage for anonymous, Firestore for authenticated)
-- ✅ Security rules with RLS (Row Level Security)
-- ✅ Notes, folders, photos, links all persisted
+- ✅ Security rules with RLS (Row Level Security) for Firestore and Storage
+- ✅ Notes, folders, photos, links, **files** all persisted
+- ✅ **File upload system** - drag-drop, multi-file, Firebase Storage backend
+- ✅ **Global dropzone** - drag files anywhere to upload
+- ✅ **Background context menu** - right-click anywhere for create options
+- ✅ **Unified context menus** - consistent across all content types
 - ✅ Events system with visual debugger
 - ✅ **Optimistic folder creation** with instant UI feedback
 - ✅ **Inline folder naming** with keyboard navigation (Enter/Escape)
@@ -230,9 +344,11 @@
    - Test EventDebugger shows Firestore events
 
 ### Important Notes
-- **Firestore Validation**: No undefined values allowed - use conditional field addition
+- **Firestore Validation**: No undefined values allowed - filter with Object.fromEntries + filter pattern
 - **Type Safety**: Use \`Record<string, unknown>\` for dynamic Firestore data objects
 - **Hybrid Mode**: getStorageAdapter(user?.uid) returns Firestore or LocalStorage
+- **File Upload**: Firebase Storage with authentication, 50MB limit, files/{userId}/{fileId} path structure
+- **Undefined Field Filtering**: Always filter out undefined values before Firestore operations
 - **Optimistic Updates**: Pattern = generate temp ID → add to state → replace on success → rollback on error
 - **Framer Motion**: Use index-based delays for stagger (delay: index * 0.1), not variant propagation
 - **Animation Easing**: Custom cubic-bezier [0.25, 0.46, 0.45, 0.94] for buttery feel
@@ -241,7 +357,9 @@
 - **Modal Pattern**: DashboardTemplate = single source of truth for modals, organisms just call callbacks
 - **Edit Modal Pattern**: Type-aware EditCardModal for notes/links/photos, dedicated EditFolderModal for folders
 - **Icon Pattern**: Use Heroicons SVG with currentColor and Tailwind size-* utilities (not emojis)
-- **Current Rung**: 0.5 (Firebase Integration Complete + UX Polish + Content Editing)
+- **Context Menu Pattern**: Use e.stopPropagation() in card handlers to prevent background menu
+- **Global Dropzone**: Drag counter prevents flicker, intelligent routing (images → Photos, files → Files)
+- **Current Rung**: 0.5 (Firebase Integration Complete + File Upload + UX Polish + Content Editing)
 - **Build Status**: All checks passing ✅
 
 ### Testing Checklist

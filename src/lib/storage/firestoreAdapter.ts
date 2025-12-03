@@ -11,13 +11,21 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
 import { db } from "@/lib/firebase/firestore";
+import { storage } from "@/lib/firebase/storage";
 import { StorageAdapter } from "./types";
 import { Note, NoteInput, NoteUpdate } from "@/types/note";
 import { Folder, FolderInput, FolderUpdate } from "@/types/folder";
 import { Photo } from "@/types/photo";
 import { Link } from "@/types/link";
 import { Label, LabelInput, LabelUpdate } from "@/types/label";
+import { File, FileInput, FileUpdate } from "@/types/file";
 
 export class FirestoreAdapter implements StorageAdapter {
   private userId: string;
@@ -796,6 +804,163 @@ export class FirestoreAdapter implements StorageAdapter {
     } catch (error) {
       console.error("Failed to delete label from Firestore:", error);
       throw new Error("Failed to delete label. Please try again.");
+    }
+  }
+
+  // Files operations
+  async getFiles(): Promise<File[]> {
+    try {
+      const q = query(
+        collection(db, "files"),
+        where("userId", "==", this.userId)
+      );
+      const snapshot = await getDocs(q);
+
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id,
+          createdAt: this.timestampToString(data.createdAt),
+          updatedAt: this.timestampToString(data.updatedAt),
+        } as File;
+      });
+    } catch (error) {
+      console.error("Failed to fetch files from Firestore:", error);
+      throw new Error("Failed to fetch files. Please try again.");
+    }
+  }
+
+  async uploadFile(
+    file: globalThis.File,
+    metadata: FileInput
+  ): Promise<File> {
+    try {
+      console.log("🔵 [uploadFile] Starting upload", { fileName: file.name, fileSize: file.size, userId: this.userId });
+
+      const fileId = this.generateId();
+      const fileExtension = file.name.split(".").pop() || "";
+      const storagePath = `files/${this.userId}/${fileId}.${fileExtension}`;
+      console.log("🔵 [uploadFile] Storage path:", storagePath);
+
+      // Upload file to Firebase Storage
+      const storageRef = ref(storage, storagePath);
+      console.log("🔵 [uploadFile] Uploading to Storage...");
+      await uploadBytes(storageRef, file);
+      console.log("✅ [uploadFile] Upload to Storage successful");
+
+      // Get download URL
+      console.log("🔵 [uploadFile] Getting download URL...");
+      const downloadURL = await getDownloadURL(storageRef);
+      console.log("✅ [uploadFile] Download URL obtained:", downloadURL);
+
+      // Create file document in Firestore
+      // Filter out undefined values (Firestore doesn't allow undefined)
+      const rawFileData = {
+        ...metadata,
+        url: downloadURL,
+        storagePath,
+        userId: this.userId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      // Remove undefined fields
+      const fileData = Object.fromEntries(
+        Object.entries(rawFileData).filter(([_, value]) => value !== undefined)
+      );
+
+      console.log("🔵 [uploadFile] Creating Firestore document...", { fileId, fileData: { ...fileData, createdAt: "serverTimestamp()", updatedAt: "serverTimestamp()" } });
+
+      const docRef = doc(db, "files", fileId);
+      await setDoc(docRef, fileData);
+      console.log("✅ [uploadFile] Firestore document created successfully");
+
+      // Return file object with timestamps
+      const result = {
+        id: fileId,
+        ...metadata,
+        url: downloadURL,
+        storagePath,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      console.log("✅ [uploadFile] Upload complete, returning file object:", result);
+      return result;
+    } catch (error) {
+      console.error("❌ [uploadFile] Upload failed:", error);
+      console.error("❌ [uploadFile] Error details:", {
+        message: error instanceof Error ? error.message : String(error),
+        code: (error as any)?.code,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw new Error("Failed to upload file. Please try again.");
+    }
+  }
+
+  async deleteFile(id: string): Promise<void> {
+    try {
+      const docRef = doc(db, "files", id);
+
+      // Get file data to retrieve storage path
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists() || docSnap.data().userId !== this.userId) {
+        throw new Error("File not found or access denied");
+      }
+
+      const fileData = docSnap.data();
+      const storagePath = fileData.storagePath;
+
+      // Delete from Firebase Storage
+      if (storagePath) {
+        const storageRef = ref(storage, storagePath);
+        await deleteObject(storageRef);
+      }
+
+      // Delete from Firestore
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error("Failed to delete file:", error);
+      throw new Error("Failed to delete file. Please try again.");
+    }
+  }
+
+  async updateFile(id: string, updates: FileUpdate): Promise<File> {
+    try {
+      const docRef = doc(db, "files", id);
+
+      // Verify ownership before updating
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists() || docSnap.data().userId !== this.userId) {
+        throw new Error("File not found or access denied");
+      }
+
+      // Remove undefined fields (Firestore doesn't support undefined)
+      const updateData: Record<string, unknown> = {
+        updatedAt: serverTimestamp(),
+      };
+
+      // Only add fields that are not undefined
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
+      if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;
+      if (updates.isPinned !== undefined) updateData.isPinned = updates.isPinned;
+
+      await updateDoc(docRef, updateData);
+
+      // Return updated file
+      const updatedSnap = await getDoc(docRef);
+      const data = updatedSnap.data()!;
+
+      return {
+        ...data,
+        id: updatedSnap.id,
+        createdAt: this.timestampToString(data.createdAt),
+        updatedAt: this.timestampToString(data.updatedAt),
+      } as File;
+    } catch (error) {
+      console.error("Failed to update file in Firestore:", error);
+      throw new Error("Failed to update file. Please try again.");
     }
   }
 }

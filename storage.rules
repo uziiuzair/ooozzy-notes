@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for Notes.Ooozzy
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Files uploaded by users - TEMPORARY: Allowing all authenticated users for testing
+    match /files/{allPaths=**} {
+      // Allow all authenticated users to read, write, delete (TEMPORARY)
+      allow read, write: if request.auth != null;
+    }
+
+    // Photos uploaded by users (keeping consistent with existing photo upload)
+    match /photos/{userId}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.size < 10 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

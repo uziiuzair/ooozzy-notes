@@ -7,15 +7,16 @@ import { Button } from "@/components/atoms/Button";
 import { Note } from "@/types/note";
 import { Link } from "@/types/link";
 import { Photo } from "@/types/photo";
+import { File as FileType } from "@/types/file";
 import { LabelSelector } from "@/components/molecules/LabelSelector";
 
-type ContentItem = Note | Link | Photo;
+type ContentItem = Note | Link | Photo | FileType;
 
 interface EditCardModalProps {
   isOpen: boolean;
   onClose: () => void;
   item: ContentItem | null;
-  type: "note" | "link" | "photo";
+  type: "note" | "link" | "photo" | "file";
   onSave: (id: string, updates: Partial<ContentItem>) => void;
 }
 
@@ -36,7 +37,12 @@ export const EditCardModal: FC<EditCardModalProps> = ({
   // Initialize form with item data
   useEffect(() => {
     if (item) {
-      setTitle(item.title);
+      // File type uses 'name' instead of 'title'
+      if (type === "file" && "name" in item) {
+        setTitle(item.name);
+      } else if ("title" in item) {
+        setTitle(item.title);
+      }
       setSelectedLabelIds(item.labelIds || []);
       if (type === "link" && "url" in item) {
         setUrl(item.url);
@@ -69,10 +75,16 @@ export const EditCardModal: FC<EditCardModalProps> = ({
   const handleSave = () => {
     if (!item) return;
 
-    const updates: Partial<ContentItem> = {
-      title,
-      labelIds: selectedLabelIds,
-    };
+    const updates: Partial<ContentItem> = {};
+
+    // File type uses 'name' instead of 'title'
+    if (type === "file") {
+      (updates as Partial<FileType>).name = title;
+    } else {
+      (updates as Partial<Note | Photo | Link>).title = title;
+    }
+
+    updates.labelIds = selectedLabelIds;
 
     if (type === "link") {
       (updates as Partial<Link>).url = url;

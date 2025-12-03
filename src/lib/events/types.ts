@@ -134,6 +134,38 @@ export type AppEvents = {
   };
 
   // ============================================================
+  // File Events - File management
+  // ============================================================
+  "file:uploaded": {
+    fileId: string;
+    name: string;
+    fileType: string;
+    size: number;
+    folderId: string | null;
+    timestamp: number;
+  };
+
+  "file:deleted": {
+    fileId: string;
+    folderId: string | null;
+    timestamp: number;
+  };
+
+  "file:moved": {
+    fileId: string;
+    fromFolderId: string | null;
+    toFolderId: string | null;
+    timestamp: number;
+  };
+
+  "file:updated": {
+    fileId: string;
+    folderId: string | null;
+    fieldsUpdated: string[];
+    timestamp: number;
+  };
+
+  // ============================================================
   // Label Events - Label management
   // ============================================================
   "label:created": {

@@ -41,6 +41,7 @@ export function PhotoCard({
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent background context menu from showing
     // Context menu will be handled by parent component
   };
 

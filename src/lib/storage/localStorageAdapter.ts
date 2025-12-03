@@ -293,4 +293,31 @@ export class LocalStorageAdapter implements StorageAdapter {
     // Labels are only supported for authenticated users in Firestore
     // No-op for anonymous users
   }
+
+  // Files operations (not supported in localStorage - require Firebase Storage)
+  async getFiles(): Promise<never[]> {
+    // Files require Firebase Storage - not supported in localStorage mode
+    return [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async uploadFile(file: globalThis.File, metadata: unknown): Promise<never> {
+    throw new Error(
+      "File uploads require Firebase Storage. Please sign in to upload files."
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async deleteFile(id: string): Promise<void> {
+    throw new Error(
+      "File operations require Firebase Storage. Please sign in."
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async updateFile(id: string, updates: unknown): Promise<never> {
+    throw new Error(
+      "File operations require Firebase Storage. Please sign in."
+    );
+  }
 }

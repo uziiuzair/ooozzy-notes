@@ -8,6 +8,7 @@ import { FoldersProvider } from "./FoldersProvider";
 import { PhotosProvider } from "./PhotosProvider";
 import { LinksProvider } from "./LinksProvider";
 import { LabelsProvider } from "./LabelsProvider";
+import { FilesProvider } from "./FilesProvider";
 
 interface AppProviderProps {
   children: ReactNode;
@@ -21,7 +22,9 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
           <FoldersProvider>
             <NotesProvider>
               <PhotosProvider>
-                <LinksProvider>{children}</LinksProvider>
+                <LinksProvider>
+                  <FilesProvider>{children}</FilesProvider>
+                </LinksProvider>
               </PhotosProvider>
             </NotesProvider>
           </FoldersProvider>

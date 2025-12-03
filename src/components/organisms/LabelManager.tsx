@@ -6,16 +6,17 @@ import { Button } from "@/components/atoms/Button";
 import { Note } from "@/types/note";
 import { Link } from "@/types/link";
 import { Photo } from "@/types/photo";
+import { File as FileType } from "@/types/file";
 import { Label } from "@/types/label";
 import { LabelBadge } from "@/components/molecules/LabelBadge";
 
-type ContentItem = Note | Link | Photo;
+type ContentItem = Note | Link | Photo | FileType;
 
 interface LabelManagerProps {
   isOpen: boolean;
   onClose: () => void;
   item: ContentItem | null;
-  type: "note" | "link" | "photo";
+  type: "note" | "link" | "photo" | "file";
   labels: Label[];
   onSave: (id: string, labelIds: string[]) => void;
 }
@@ -82,7 +83,7 @@ export const LabelManager: FC<LabelManagerProps> = ({
         {/* Item Title */}
         <div className="pb-3 border-b border-gray-200">
           <p className="text-sm font-medium text-gray-900 truncate">
-            {item.title || "Untitled"}
+            {"title" in item ? item.title || "Untitled" : item.name || "Untitled"}
           </p>
         </div>
 

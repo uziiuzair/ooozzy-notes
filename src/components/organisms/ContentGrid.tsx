@@ -5,19 +5,26 @@ import { motion } from "framer-motion";
 import { Note } from "@/types/note";
 import { Photo } from "@/types/photo";
 import { Link } from "@/types/link";
+import { File } from "@/types/file";
 import { Folder } from "@/types/folder";
 import { Label } from "@/types/label";
 import { NoteCard } from "@/components/molecules/NoteCard";
 import { PhotoCard } from "@/components/molecules/PhotoCard";
 import { LinkCard } from "@/components/molecules/LinkCard";
+import { FileCard } from "@/components/molecules/FileCard";
 import { EmptyState } from "@/components/molecules/EmptyState";
-import { ContextMenu } from "@/components/molecules/ContextMenu";
+import {
+  ContextMenu,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSubmenu,
+} from "@/components/molecules/ContextMenu";
 import { LabelManager } from "@/components/organisms/LabelManager";
 import { useRouter } from "next/navigation";
 
 interface ContentItem {
-  type: "note" | "photo" | "link";
-  data: Note | Photo | Link;
+  type: "note" | "photo" | "link" | "file";
+  data: Note | Photo | Link | File;
   createdAt: string;
   isPinned?: boolean;
 }
@@ -26,6 +33,7 @@ interface ContentGridProps {
   notes: Note[];
   photos: Photo[];
   links: Link[];
+  files?: File[];
   folders: Folder[];
   labels?: Label[];
   loadingMetadataIds?: Set<string>;
@@ -33,21 +41,25 @@ interface ContentGridProps {
   onNoteDelete?: (note: Note) => void;
   onPhotoDelete?: (photo: Photo) => void;
   onLinkDelete?: (link: Link) => void;
+  onFileDelete?: (file: File) => void;
   onNoteUpdate?: (id: string, updates: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
   onPhotoUpdate?: (id: string, updates: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
   onLinkUpdate?: (id: string, updates: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+  onFileUpdate?: (id: string, updates: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
   onNoteEdit?: (note: Note) => void;
   onPhotoEdit?: (photo: Photo) => void;
   onLinkEdit?: (link: Link) => void;
+  onFileEdit?: (file: File) => void;
   onLinkRefreshMetadata?: (link: Link) => void;
   onNoteDragStart?: (note: Note) => void;
   onPhotoDragStart?: (photo: Photo) => void;
   onLinkDragStart?: (link: Link) => void;
+  onFileDragStart?: (file: File) => void;
   onDragEnd?: () => void;
   onMoveToFolder?: (
     itemId: string,
     folderId: string | null,
-    itemType: "note" | "photo" | "link"
+    itemType: "note" | "photo" | "link" | "file"
   ) => void;
   onCreateNote?: () => void;
   loading?: boolean;
@@ -57,6 +69,7 @@ export function ContentGrid({
   notes,
   photos,
   links,
+  files = [],
   folders,
   labels = [],
   loadingMetadataIds,
@@ -64,15 +77,19 @@ export function ContentGrid({
   onNoteDelete,
   onPhotoDelete,
   onLinkDelete,
+  onFileDelete,
   onNoteUpdate,
   onPhotoUpdate,
   onLinkUpdate,
+  onFileUpdate,
   onNoteEdit,
   onPhotoEdit,
   onLinkEdit,
+  onFileEdit,
   onNoteDragStart,
   onPhotoDragStart,
   onLinkDragStart,
+  onFileDragStart,
   onDragEnd,
   onMoveToFolder,
   onLinkRefreshMetadata,
@@ -86,9 +103,11 @@ export function ContentGrid({
     item: ContentItem;
   } | null>(null);
   const [labelManagerOpen, setLabelManagerOpen] = useState(false);
-  const [labelManagerItem, setLabelManagerItem] = useState<ContentItem | null>(null);
+  const [labelManagerItem, setLabelManagerItem] = useState<ContentItem | null>(
+    null
+  );
 
-  // Combine notes, photos, and links into a single array
+  // Combine notes, photos, links, and files into a single array
   const contentItems: ContentItem[] = [
     ...notes.map((note) => ({
       type: "note" as const,
@@ -108,6 +127,12 @@ export function ContentGrid({
       createdAt: link.createdAt.toString(),
       isPinned: link.isPinned,
     })),
+    ...files.map((file) => ({
+      type: "file" as const,
+      data: file,
+      createdAt: file.createdAt,
+      isPinned: file.isPinned,
+    })),
   ];
 
   // Sort by pinned first, then by date
@@ -119,6 +144,7 @@ export function ContentGrid({
 
   const handleContextMenu = (e: React.MouseEvent, item: ContentItem) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent background context menu from showing
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
@@ -136,9 +162,12 @@ export function ContentGrid({
     } else if (item.type === "photo") {
       const photo = item.data as Photo;
       onPhotoDelete?.(photo);
-    } else {
+    } else if (item.type === "link") {
       const link = item.data as Link;
       onLinkDelete?.(link);
+    } else {
+      const file = item.data as File;
+      onFileDelete?.(file);
     }
     setContextMenu(null);
   };
@@ -153,9 +182,12 @@ export function ContentGrid({
     } else if (item.type === "photo") {
       const photo = item.data as Photo;
       onPhotoUpdate?.(photo.id, { isPinned: !photo.isPinned });
-    } else {
+    } else if (item.type === "link") {
       const link = item.data as Link;
       onLinkUpdate?.(link.id, { isPinned: !link.isPinned });
+    } else {
+      const file = item.data as File;
+      onFileUpdate?.(file.id, { isPinned: !file.isPinned });
     }
     setContextMenu(null);
   };
@@ -170,9 +202,12 @@ export function ContentGrid({
     } else if (item.type === "photo") {
       const photo = item.data as Photo;
       router.push(`/photo/${photo.id}`);
-    } else {
+    } else if (item.type === "link") {
       const link = item.data as Link;
       window.open(link.url, "_blank");
+    } else {
+      const file = item.data as File;
+      window.open(file.url, "_blank");
     }
     setContextMenu(null);
   };
@@ -187,9 +222,12 @@ export function ContentGrid({
     } else if (item.type === "photo") {
       const photo = item.data as Photo;
       onPhotoEdit?.(photo);
-    } else {
+    } else if (item.type === "link") {
       const link = item.data as Link;
       onLinkEdit?.(link);
+    } else if (item.type === "file") {
+      const file = item.data as File;
+      onFileEdit?.(file);
     }
     setContextMenu(null);
   };
@@ -300,7 +338,7 @@ export function ContentGrid({
                 onDragStart={() => onPhotoDragStart?.(item.data as Photo)}
                 onDragEnd={onDragEnd}
               />
-            ) : (
+            ) : item.type === "link" ? (
               <LinkCard
                 link={item.data as Link}
                 labels={labels}
@@ -321,6 +359,23 @@ export function ContentGrid({
                 }}
                 onDragEnd={onDragEnd}
               />
+            ) : (
+              <FileCard
+                file={item.data as File}
+                labels={labels}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData(
+                    "application/json",
+                    JSON.stringify({
+                      type: "file",
+                      id: (item.data as File).id,
+                    })
+                  );
+                  onFileDragStart?.(item.data as File);
+                }}
+                onDragEnd={onDragEnd}
+              />
             )}
           </motion.div>
         ))}
@@ -333,9 +388,9 @@ export function ContentGrid({
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
         >
-          <button
+          <ContextMenuItem
             onClick={handleView}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+            className="flex items-center gap-2"
           >
             <svg
               className="w-4 h-4"
@@ -357,10 +412,10 @@ export function ContentGrid({
               />
             </svg>
             View
-          </button>
-          <button
+          </ContextMenuItem>
+          <ContextMenuItem
             onClick={handleEdit}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+            className="flex items-center gap-2"
           >
             <svg
               className="w-4 h-4"
@@ -376,10 +431,10 @@ export function ContentGrid({
               />
             </svg>
             Edit
-          </button>
-          <button
+          </ContextMenuItem>
+          <ContextMenuItem
             onClick={handlePin}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+            className="flex items-center gap-2"
           >
             <svg
               className="w-4 h-4"
@@ -395,13 +450,13 @@ export function ContentGrid({
               />
             </svg>
             {contextMenu.item.isPinned ? "Unpin" : "Pin"}
-          </button>
-
+          </ContextMenuItem>
           {/* Manage Labels */}
-          <div className="border-t border-gray-200 my-1" />
-          <button
+
+          <ContextMenuSeparator />
+          <ContextMenuItem
             onClick={handleManageLabels}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+            className="flex items-center gap-2"
           >
             <svg
               className="w-4 h-4"
@@ -417,15 +472,15 @@ export function ContentGrid({
               />
             </svg>
             Manage Labels
-          </button>
+          </ContextMenuItem>
 
           {/* Refresh Metadata - only for links */}
           {contextMenu.item.type === "link" && (
             <>
-              <div className="border-t border-gray-200 my-1" />
-              <button
+              <ContextMenuSeparator />
+              <ContextMenuItem
                 onClick={handleRefreshMetadata}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                className="flex items-center gap-2"
               >
                 <svg
                   className="w-4 h-4"
@@ -441,36 +496,33 @@ export function ContentGrid({
                   />
                 </svg>
                 Refresh Metadata
-              </button>
+              </ContextMenuItem>
+            </>
+          )}
+          {/* Move to folder submenu */}
+          <div className="border-t border-gray-200 my-1" />
+
+          {folders.length > 0 && (
+            <>
+              <ContextMenuSubmenu label="Move to">
+                <div className="max-h-52 overflow-y-auto">
+                  {folders.map((folder) => (
+                    <ContextMenuItem
+                      key={folder.id}
+                      onClick={() => handleMoveToFolder(folder.id)}
+                    >
+                      {folder.name}
+                    </ContextMenuItem>
+                  ))}
+                </div>
+              </ContextMenuSubmenu>
+              <ContextMenuSeparator />
             </>
           )}
 
-          {/* Move to folder submenu */}
-          <div className="border-t border-gray-200 my-1" />
-          <div className="px-4 py-1 text-xs text-gray-500 uppercase">
-            Move to
-          </div>
-          <div className="h-36 overflow-y-auto">
-            <button
-              onClick={() => handleMoveToFolder(null)}
-              className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
-            >
-              Root (No folder)
-            </button>
-            {folders.map((folder) => (
-              <button
-                key={folder.id}
-                onClick={() => handleMoveToFolder(folder.id)}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
-              >
-                {folder.name}
-              </button>
-            ))}
-          </div>
-          <div className="border-t border-gray-200 my-1" />
-          <button
+          <ContextMenuItem
             onClick={handleDelete}
-            className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
+            className="hover:bg-red-50 text-red-600 hover:text-red-700 flex items-center gap-2"
           >
             <svg
               className="w-4 h-4"
@@ -486,7 +538,7 @@ export function ContentGrid({
               />
             </svg>
             Delete
-          </button>
+          </ContextMenuItem>
         </ContextMenu>
       )}
 

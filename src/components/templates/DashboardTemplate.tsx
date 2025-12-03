@@ -15,6 +15,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/molecules/ContextMenu";
+import { DropzoneOverlay } from "@/components/molecules/DropzoneOverlay";
 import { Modal } from "@/components/molecules/Modal";
 import { ConfirmModal } from "@/components/molecules/ConfirmModal";
 import { PromptModal } from "@/components/molecules/PromptModal";
@@ -24,11 +25,13 @@ import { EditFolderModal } from "@/components/organisms/EditFolderModal";
 import { useNotes } from "@/hooks/useNotes";
 import { usePhotos } from "@/providers/PhotosProvider";
 import { useLinks } from "@/providers/LinksProvider";
+import { useFiles } from "@/hooks/useFiles";
 import { useFolders } from "@/hooks/useFolders";
 import { useLabels } from "@/hooks/useLabels";
 import { Note } from "@/types/note";
 import { Photo } from "@/types/photo";
 import { Link } from "@/types/link";
+import { File as FileType } from "@/types/file";
 import { Folder } from "@/types/folder";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -50,16 +53,19 @@ export const DashboardTemplate: FC = () => {
     updateLink,
     refreshLinkMetadata,
   } = useLinks();
+  const { files, uploadFile, deleteFile, updateFile } = useFiles();
   const { folders, createFolder, deleteFolder, updateFolder } = useFolders();
   const { labels, createLabel } = useLabels();
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [filteredPhotos, setFilteredPhotos] = useState<Photo[]>([]);
   const [filteredLinks, setFilteredLinks] = useState<Link[]>([]);
+  const [filteredFiles, setFilteredFiles] = useState<typeof files>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [, setDraggedNote] = useState<Note | null>(null);
   const [, setDraggedPhoto] = useState<Photo | null>(null);
   const [, setDraggedLink] = useState<Link | null>(null);
+  const [, setDraggedFile] = useState<FileType | null>(null);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [folderContextMenu, setFolderContextMenu] = useState<{
     x: number;
@@ -70,6 +76,7 @@ export const DashboardTemplate: FC = () => {
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [editingLabelIds, setEditingLabelIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
 
   // Modal states
   const [confirmModal, setConfirmModal] = useState<{
@@ -111,8 +118,8 @@ export const DashboardTemplate: FC = () => {
   // Edit modal states
   const [editCardModal, setEditCardModal] = useState<{
     isOpen: boolean;
-    item: Note | Photo | Link | null;
-    type: "note" | "photo" | "link" | null;
+    item: Note | Photo | Link | FileType | null;
+    type: "note" | "photo" | "link" | "file" | null;
   }>({
     isOpen: false,
     item: null,
@@ -126,6 +133,17 @@ export const DashboardTemplate: FC = () => {
     isOpen: false,
     folder: null,
   });
+
+  // Global dropzone state
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_dragCounter, setDragCounter] = useState(0);
+
+  // Background context menu state
+  const [backgroundContextMenu, setBackgroundContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Helper function to build breadcrumb trail
   const buildBreadcrumbs = (folderId: string | null): BreadcrumbItem[] => {
@@ -190,7 +208,16 @@ export const DashboardTemplate: FC = () => {
       linksToShow = links.filter((link) => !link.folderId);
     }
     setFilteredLinks(linksToShow);
-  }, [notes, photos, links, currentFolderId, getPhotosByFolder]);
+
+    // Filter files based on current folder
+    let filesToShow = files;
+    if (currentFolderId) {
+      filesToShow = files.filter((file) => file.folderId === currentFolderId);
+    } else {
+      filesToShow = files.filter((file) => !file.folderId);
+    }
+    setFilteredFiles(filesToShow);
+  }, [notes, photos, links, files, currentFolderId, getPhotosByFolder]);
 
   // Add paste event listener for links
   useEffect(() => {
@@ -260,6 +287,20 @@ export const DashboardTemplate: FC = () => {
             link.url.toLowerCase().includes(lowerQuery)
         )
       );
+
+      // Search files
+      const filesToSearch = currentFolderId
+        ? files.filter((file) => file.folderId === currentFolderId)
+        : files.filter((file) => !file.folderId);
+
+      setFilteredFiles(
+        filesToSearch.filter(
+          (file) =>
+            file.name.toLowerCase().includes(lowerQuery) ||
+            file.fileType.toLowerCase().includes(lowerQuery) ||
+            file.mimeType.toLowerCase().includes(lowerQuery)
+        )
+      );
     } else {
       // Reset to folder-filtered content
       if (currentFolderId) {
@@ -270,10 +311,14 @@ export const DashboardTemplate: FC = () => {
         setFilteredLinks(
           links.filter((link) => link.folderId === currentFolderId)
         );
+        setFilteredFiles(
+          files.filter((file) => file.folderId === currentFolderId)
+        );
       } else {
         setFilteredNotes(notes.filter((note) => !note.folderId));
         setFilteredPhotos(photos.filter((photo) => !photo.folderId));
         setFilteredLinks(links.filter((link) => !link.folderId));
+        setFilteredFiles(files.filter((file) => !file.folderId));
       }
     }
   };
@@ -330,6 +375,57 @@ export const DashboardTemplate: FC = () => {
     // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadedFiles = e.target.files;
+    if (!uploadedFiles) return;
+
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const file = uploadedFiles[i];
+      try {
+        await uploadFile(file, currentFolderId || undefined);
+        successCount++;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        failCount++;
+        const errorMessage = error.message || "Failed to upload file";
+        if (!errors.includes(errorMessage)) {
+          errors.push(errorMessage);
+        }
+        console.error(`Failed to upload ${file.name}:`, error);
+      }
+    }
+
+    // Show results to user
+    if (successCount > 0 && failCount === 0) {
+      // All successful - no alert needed, files will appear
+    } else if (successCount > 0 && failCount > 0) {
+      setAlertModal({
+        isOpen: true,
+        title: "Upload Partially Successful",
+        message: `Uploaded ${successCount} file(s) successfully.\n${failCount} file(s) failed:\n${errors.join(
+          "\n"
+        )}`,
+        variant: "warning",
+      });
+    } else if (failCount > 0) {
+      setAlertModal({
+        isOpen: true,
+        title: "Upload Failed",
+        message: `Failed to upload files`,
+        variant: "error",
+      });
+    }
+
+    // Reset input
+    if (documentInputRef.current) {
+      documentInputRef.current.value = "";
     }
   };
 
@@ -411,6 +507,18 @@ export const DashboardTemplate: FC = () => {
     });
   };
 
+  const handleFileDelete = async (file: FileType) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete File",
+      message: `Are you sure you want to delete "${file.name}"?`,
+      onConfirm: async () => {
+        await deleteFile(file.id);
+      },
+      variant: "danger",
+    });
+  };
+
   const handleLinkRefreshMetadata = async (link: Link) => {
     try {
       await refreshLinkMetadata(link);
@@ -450,6 +558,14 @@ export const DashboardTemplate: FC = () => {
     });
   };
 
+  const handleFileEdit = (file: FileType) => {
+    setEditCardModal({
+      isOpen: true,
+      item: file,
+      type: "file",
+    });
+  };
+
   const handleFolderEdit = (folder: Folder) => {
     setEditFolderModal({
       isOpen: true,
@@ -460,7 +576,7 @@ export const DashboardTemplate: FC = () => {
 
   const handleCardSave = async (
     id: string,
-    updates: Partial<Note | Photo | Link>
+    updates: Partial<Note | Photo | Link | FileType>
   ) => {
     try {
       if (editCardModal.type === "note") {
@@ -469,6 +585,8 @@ export const DashboardTemplate: FC = () => {
         await updatePhoto(id, updates as Partial<Photo>);
       } else if (editCardModal.type === "link") {
         await updateLink(id, updates as Partial<Link>);
+      } else if (editCardModal.type === "file") {
+        await updateFile(id, updates as Partial<FileType>);
       }
       setEditCardModal({ isOpen: false, item: null, type: null });
     } catch (error) {
@@ -552,16 +670,21 @@ export const DashboardTemplate: FC = () => {
     setDraggedLink(link);
   };
 
+  const handleFileDragStart = (file: FileType) => {
+    setDraggedFile(file);
+  };
+
   const handleDragEnd = () => {
     setDraggedNote(null);
     setDraggedPhoto(null);
     setDraggedLink(null);
+    setDraggedFile(null);
   };
 
   const handleItemDrop = async (
     itemId: string,
     folderId: string | null,
-    itemType: "note" | "photo" | "link" | "folder"
+    itemType: "note" | "photo" | "link" | "file" | "folder"
   ) => {
     if (itemType === "note") {
       await updateNote(itemId, { folderId: folderId || undefined });
@@ -569,6 +692,8 @@ export const DashboardTemplate: FC = () => {
       await updatePhoto(itemId, { folderId: folderId || undefined });
     } else if (itemType === "link") {
       await updateLink(itemId, { folderId: folderId || undefined });
+    } else if (itemType === "file") {
+      await updateFile(itemId, { folderId: folderId || undefined });
     } else if (itemType === "folder") {
       // Check for circular nesting
       const targetFolder = folders.find((f) => f.id === folderId);
@@ -605,6 +730,8 @@ export const DashboardTemplate: FC = () => {
         setFilteredPhotos((prev) => prev.filter((p) => p.id !== itemId));
       } else if (itemType === "link") {
         setFilteredLinks((prev) => prev.filter((l) => l.id !== itemId));
+      } else if (itemType === "file") {
+        setFilteredFiles((prev) => prev.filter((f) => f.id !== itemId));
       }
       // Note: folders will automatically update via state management
     }
@@ -612,6 +739,7 @@ export const DashboardTemplate: FC = () => {
 
   const handleFolderContextMenu = (e: React.MouseEvent, folder: Folder) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent background context menu from showing
     setFolderContextMenu({ x: e.clientX, y: e.clientY, folder });
   };
 
@@ -672,8 +800,128 @@ export const DashboardTemplate: FC = () => {
     });
   };
 
+  // Global dropzone handlers
+  const handleGlobalDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Check if dragging files from desktop (not internal drag-drop)
+    if (e.dataTransfer.types.includes("Files")) {
+      setDragCounter((prev) => prev + 1);
+      setIsDraggingFiles(true);
+    }
+  };
+
+  const handleGlobalDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleGlobalDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setDragCounter((prev) => {
+      const newCount = prev - 1;
+      if (newCount === 0) {
+        setIsDraggingFiles(false);
+      }
+      return newCount;
+    });
+  };
+
+  const handleGlobalDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsDraggingFiles(false);
+    setDragCounter(0);
+
+    const droppedFiles = e.dataTransfer.files;
+    if (!droppedFiles || droppedFiles.length === 0) return;
+
+    let photoCount = 0;
+    let fileCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < droppedFiles.length; i++) {
+      const file = droppedFiles[i];
+
+      try {
+        // Route images to photos, everything else to files
+        if (file.type.startsWith("image/")) {
+          await uploadPhoto(file, currentFolderId || undefined);
+          photoCount++;
+        } else {
+          await uploadFile(file, currentFolderId || undefined);
+          fileCount++;
+        }
+      } catch (error) {
+        console.error("Failed to upload:", error);
+        failCount++;
+      }
+    }
+
+    // Show success/error alerts
+    if (photoCount > 0 || fileCount > 0) {
+      const messages = [];
+      if (photoCount > 0)
+        messages.push(`${photoCount} photo${photoCount > 1 ? "s" : ""}`);
+      if (fileCount > 0)
+        messages.push(`${fileCount} file${fileCount > 1 ? "s" : ""}`);
+
+      setAlertModal({
+        isOpen: true,
+        title: "Upload Successful",
+        message: `Uploaded ${messages.join(" and ")} successfully!`,
+        variant: "success",
+      });
+    }
+
+    if (failCount > 0) {
+      setAlertModal({
+        isOpen: true,
+        title: "Upload Failed",
+        message: `Failed to upload ${failCount} file${
+          failCount > 1 ? "s" : ""
+        }. Please try again.`,
+        variant: "error",
+      });
+    }
+  };
+
+  // Background context menu handlers
+  const handleBackgroundContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault(); // Always prevent default browser context menu
+
+    // Check if clicking on a card or interactive element
+    const target = e.target as HTMLElement;
+
+    // Don't show context menu if clicking on cards or interactive elements
+    const isCard = target.closest(
+      'article, button, a, input, textarea, [class*="Card"]'
+    );
+
+    if (isCard) {
+      return; // Let the card's context menu handle it
+    }
+
+    // Show background context menu
+    setBackgroundContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
   return (
-    <div className="min-h-screen">
+    <div
+      className="min-h-screen"
+      onContextMenu={handleBackgroundContextMenu}
+      onDragEnter={handleGlobalDragEnter}
+      onDragOver={handleGlobalDragOver}
+      onDragLeave={handleGlobalDragLeave}
+      onDrop={handleGlobalDrop}
+    >
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">
         <div className="max-w-[95rem] mx-auto px-4 sm:px-6 lg:px-8">
@@ -695,11 +943,20 @@ export const DashboardTemplate: FC = () => {
                 onChange={handlePhotoUpload}
                 className="hidden"
               />
+              <input
+                ref={documentInputRef}
+                type="file"
+                multiple
+                accept="*/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
               <AddNewDropdown
                 onAddNote={handleCreateNote}
                 onAddPhoto={() => fileInputRef.current?.click()}
                 onAddLink={handleAddLink}
                 onAddFolder={() => setIsCreateFolderModalOpen(true)}
+                onAddFile={() => documentInputRef.current?.click()}
               />
             </div>
           </div>
@@ -756,7 +1013,9 @@ export const DashboardTemplate: FC = () => {
                         notes={notes.filter((n) => n.folderId === folder.id)}
                         photos={photos.filter((p) => p.folderId === folder.id)}
                         links={links.filter((l) => l.folderId === folder.id)}
-                        subfolders={folders.filter((f) => f.parentId === folder.id)}
+                        subfolders={folders.filter(
+                          (f) => f.parentId === folder.id
+                        )}
                         onClick={() => handleFolderClick(folder.id)}
                         onDelete={() => handleFolderDelete(folder)}
                         onDrop={handleItemDrop}
@@ -794,6 +1053,7 @@ export const DashboardTemplate: FC = () => {
               notes={filteredNotes}
               photos={filteredPhotos}
               links={filteredLinks}
+              files={filteredFiles}
               folders={folders}
               labels={labels}
               loadingMetadataIds={loadingMetadataIds}
@@ -801,16 +1061,20 @@ export const DashboardTemplate: FC = () => {
               onNoteDelete={handleNoteDelete}
               onPhotoDelete={handlePhotoDelete}
               onLinkDelete={handleLinkDelete}
+              onFileDelete={handleFileDelete}
               onNoteUpdate={updateNote}
               onPhotoUpdate={updatePhoto}
               onLinkUpdate={updateLink}
+              onFileUpdate={updateFile}
               onNoteEdit={handleNoteEdit}
               onPhotoEdit={handlePhotoEdit}
               onLinkEdit={handleLinkEdit}
+              onFileEdit={handleFileEdit}
               onLinkRefreshMetadata={handleLinkRefreshMetadata}
               onNoteDragStart={handleNoteDragStart}
               onPhotoDragStart={handlePhotoDragStart}
               onLinkDragStart={handleLinkDragStart}
+              onFileDragStart={handleFileDragStart}
               onDragEnd={handleDragEnd}
               onMoveToFolder={handleItemDrop}
               onCreateNote={handleCreateNote}
@@ -845,7 +1109,9 @@ export const DashboardTemplate: FC = () => {
                       notes={notes.filter((n) => n.folderId === folder.id)}
                       photos={photos.filter((p) => p.folderId === folder.id)}
                       links={links.filter((l) => l.folderId === folder.id)}
-                      subfolders={folders.filter((f) => f.parentId === folder.id)}
+                      subfolders={folders.filter(
+                        (f) => f.parentId === folder.id
+                      )}
                       onClick={() => handleFolderClick(folder.id)}
                       onDelete={() => handleFolderDelete(folder)}
                       onDrop={handleItemDrop}
@@ -885,6 +1151,7 @@ export const DashboardTemplate: FC = () => {
                 notes={filteredNotes}
                 photos={filteredPhotos}
                 links={filteredLinks}
+                files={filteredFiles}
                 folders={folders}
                 labels={labels}
                 loadingMetadataIds={loadingMetadataIds}
@@ -892,16 +1159,20 @@ export const DashboardTemplate: FC = () => {
                 onNoteDelete={handleNoteDelete}
                 onPhotoDelete={handlePhotoDelete}
                 onLinkDelete={handleLinkDelete}
+                onFileDelete={handleFileDelete}
                 onNoteUpdate={updateNote}
                 onPhotoUpdate={updatePhoto}
                 onLinkUpdate={updateLink}
+                onFileUpdate={updateFile}
                 onNoteEdit={handleNoteEdit}
                 onPhotoEdit={handlePhotoEdit}
                 onLinkEdit={handleLinkEdit}
+                onFileEdit={handleFileEdit}
                 onLinkRefreshMetadata={handleLinkRefreshMetadata}
                 onNoteDragStart={handleNoteDragStart}
                 onPhotoDragStart={handlePhotoDragStart}
                 onLinkDragStart={handleLinkDragStart}
+                onFileDragStart={handleFileDragStart}
                 onDragEnd={handleDragEnd}
                 onMoveToFolder={handleItemDrop}
                 onCreateNote={handleCreateNote}
@@ -1047,7 +1318,7 @@ export const DashboardTemplate: FC = () => {
           setEditCardModal({ isOpen: false, item: null, type: null })
         }
         item={editCardModal.item}
-        type={editCardModal.type as "note" | "photo" | "link"}
+        type={editCardModal.type as "note" | "photo" | "link" | "file"}
         onSave={handleCardSave}
       />
 
@@ -1063,6 +1334,120 @@ export const DashboardTemplate: FC = () => {
         onClose={() => setIsCreateFolderModalOpen(false)}
         onSave={handleFolderCreate}
       />
+
+      {/* Global Dropzone Overlay */}
+      <DropzoneOverlay isActive={isDraggingFiles} />
+
+      {/* Background Context Menu */}
+      {backgroundContextMenu && (
+        <ContextMenu
+          x={backgroundContextMenu.x}
+          y={backgroundContextMenu.y}
+          onClose={() => setBackgroundContextMenu(null)}
+        >
+          <ContextMenuItem onClick={handleCreateNote}>
+            <div className="flex items-center gap-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-5 text-gray-600"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                />
+              </svg>
+              <span>Note</span>
+            </div>
+          </ContextMenuItem>
+
+          <ContextMenuItem onClick={() => fileInputRef.current?.click()}>
+            <div className="flex items-center gap-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-5 text-gray-600"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+                />
+              </svg>
+              <span>Photo</span>
+            </div>
+          </ContextMenuItem>
+
+          <ContextMenuItem onClick={handleAddLink}>
+            <div className="flex items-center gap-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-5 text-gray-600"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"
+                />
+              </svg>
+              <span>Link</span>
+            </div>
+          </ContextMenuItem>
+
+          <ContextMenuItem onClick={() => documentInputRef.current?.click()}>
+            <div className="flex items-center gap-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-5 text-gray-600"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+                />
+              </svg>
+              <span>Upload</span>
+            </div>
+          </ContextMenuItem>
+
+          <ContextMenuSeparator />
+
+          <ContextMenuItem onClick={() => setIsCreateFolderModalOpen(true)}>
+            <div className="flex items-center gap-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-5 text-gray-600"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"
+                />
+              </svg>
+              <span>Folder</span>
+            </div>
+          </ContextMenuItem>
+        </ContextMenu>
+      )}
     </div>
   );
 };

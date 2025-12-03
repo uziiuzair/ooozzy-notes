@@ -3,6 +3,7 @@ import { Folder, FolderInput, FolderUpdate } from "@/types/folder";
 import { Photo } from "@/types/photo";
 import { Link } from "@/types/link";
 import { Label, LabelInput, LabelUpdate } from "@/types/label";
+import { File, FileInput, FileUpdate } from "@/types/file";
 
 export interface StorageAdapter {
   // Notes operations
@@ -45,4 +46,10 @@ export interface StorageAdapter {
   createLabel(label: LabelInput): Promise<Label>;
   updateLabel(id: string, updates: LabelUpdate): Promise<Label>;
   deleteLabel(id: string): Promise<void>;
+
+  // Files operations
+  getFiles(): Promise<File[]>;
+  uploadFile(file: globalThis.File, metadata: FileInput): Promise<File>;
+  deleteFile(id: string): Promise<void>;
+  updateFile(id: string, updates: FileUpdate): Promise<File>;
 }
