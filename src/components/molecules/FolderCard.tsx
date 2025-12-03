@@ -153,7 +153,7 @@ export const FolderCard: FC<FolderCardProps> = ({
       {/* Outer container with proximity effect - acts as border */}
       <motion.div
         className={clsx(
-          "relative w-full h-full p-px rounded-lg border border-slate-200 transition-all duration-300",
+          "relative w-full h-full p-px rounded-[9px] border border-slate-200 transition-all duration-300",
           {
             "ring-2 ring-gray-400": isActive,
             "ring-2 ring-blue-500": isDragOver,
