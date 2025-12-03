@@ -5,6 +5,7 @@ import { useLabels } from "@/hooks/useLabels";
 import { Button } from "@/components/atoms/Button";
 import { Typography } from "@/components/atoms/Typography";
 import { PromptModal } from "@/components/molecules/PromptModal";
+import { AlertModal } from "@/components/molecules/AlertModal";
 
 interface LabelSelectorProps {
   selectedLabelIds: string[];
@@ -192,6 +193,14 @@ export const LabelSelector: FC<LabelSelectorProps> = ({
         message={promptModal.message}
         placeholder={promptModal.placeholder}
         defaultValue={promptModal.defaultValue}
+      />
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
       />
     </>
   );
