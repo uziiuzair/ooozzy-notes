@@ -162,9 +162,12 @@ export class FirestoreAdapter implements StorageAdapter {
       if (updates.contentType !== undefined)
         updateData.contentType = updates.contentType;
       if (updates.tags !== undefined) updateData.tags = updates.tags;
-      if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
-      if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;
-      if (updates.isPinned !== undefined) updateData.isPinned = updates.isPinned;
+      if (updates.folderId !== undefined)
+        updateData.folderId = updates.folderId;
+      if (updates.labelIds !== undefined)
+        updateData.labelIds = updates.labelIds;
+      if (updates.isPinned !== undefined)
+        updateData.isPinned = updates.isPinned;
 
       await updateDoc(docRef, updateData);
 
@@ -313,10 +316,12 @@ export class FirestoreAdapter implements StorageAdapter {
 
       // Only add fields that are not undefined
       if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.parentId !== undefined) updateData.parentId = updates.parentId;
+      if (updates.parentId !== undefined)
+        updateData.parentId = updates.parentId;
       if (updates.color !== undefined) updateData.color = updates.color;
       if (updates.icon !== undefined) updateData.icon = updates.icon;
-      if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;
+      if (updates.labelIds !== undefined)
+        updateData.labelIds = updates.labelIds;
 
       await updateDoc(docRef, updateData);
 
@@ -467,7 +472,8 @@ export class FirestoreAdapter implements StorageAdapter {
         // Add optional fields only if they have values
         if (photo.folderId !== undefined) photoData.folderId = photo.folderId;
         if (photo.labelIds !== undefined) photoData.labelIds = photo.labelIds;
-        if (photo.thumbnailUrl !== undefined) photoData.thumbnailUrl = photo.thumbnailUrl;
+        if (photo.thumbnailUrl !== undefined)
+          photoData.thumbnailUrl = photo.thumbnailUrl;
         if (photo.caption !== undefined) photoData.caption = photo.caption;
         if (photo.isPinned !== undefined) photoData.isPinned = photo.isPinned;
         if (photo.width !== undefined) photoData.width = photo.width;
@@ -507,16 +513,21 @@ export class FirestoreAdapter implements StorageAdapter {
       // Add optional fields only if they have values
       if (updates.title !== undefined) updateData.title = updates.title;
       if (updates.url !== undefined) updateData.url = updates.url;
-      if (updates.thumbnailUrl !== undefined) updateData.thumbnailUrl = updates.thumbnailUrl;
+      if (updates.thumbnailUrl !== undefined)
+        updateData.thumbnailUrl = updates.thumbnailUrl;
       if (updates.caption !== undefined) updateData.caption = updates.caption;
       if (updates.tags !== undefined) updateData.tags = updates.tags;
-      if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;
-      if (updates.isPinned !== undefined) updateData.isPinned = updates.isPinned;
-      if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
+      if (updates.labelIds !== undefined)
+        updateData.labelIds = updates.labelIds;
+      if (updates.isPinned !== undefined)
+        updateData.isPinned = updates.isPinned;
+      if (updates.folderId !== undefined)
+        updateData.folderId = updates.folderId;
       if (updates.width !== undefined) updateData.width = updates.width;
       if (updates.height !== undefined) updateData.height = updates.height;
       if (updates.size !== undefined) updateData.size = updates.size;
-      if (updates.mimeType !== undefined) updateData.mimeType = updates.mimeType;
+      if (updates.mimeType !== undefined)
+        updateData.mimeType = updates.mimeType;
 
       await updateDoc(docRef, updateData);
     } catch (error) {
@@ -596,7 +607,8 @@ export class FirestoreAdapter implements StorageAdapter {
         };
 
         // Add optional fields only if they have values
-        if (link.description !== undefined) linkData.description = link.description;
+        if (link.description !== undefined)
+          linkData.description = link.description;
         if (link.favicon !== undefined) linkData.favicon = link.favicon;
         if (link.image !== undefined) linkData.image = link.image;
         if (link.labelIds !== undefined) linkData.labelIds = link.labelIds;
@@ -634,13 +646,17 @@ export class FirestoreAdapter implements StorageAdapter {
       // Add optional fields only if they have values
       if (updates.url !== undefined) updateData.url = updates.url;
       if (updates.title !== undefined) updateData.title = updates.title;
-      if (updates.description !== undefined) updateData.description = updates.description;
+      if (updates.description !== undefined)
+        updateData.description = updates.description;
       if (updates.favicon !== undefined) updateData.favicon = updates.favicon;
       if (updates.image !== undefined) updateData.image = updates.image;
       if (updates.domain !== undefined) updateData.domain = updates.domain;
-      if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;
-      if (updates.isPinned !== undefined) updateData.isPinned = updates.isPinned;
-      if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
+      if (updates.labelIds !== undefined)
+        updateData.labelIds = updates.labelIds;
+      if (updates.isPinned !== undefined)
+        updateData.isPinned = updates.isPinned;
+      if (updates.folderId !== undefined)
+        updateData.folderId = updates.folderId;
 
       await updateDoc(docRef, updateData);
     } catch (error) {
@@ -831,12 +847,13 @@ export class FirestoreAdapter implements StorageAdapter {
     }
   }
 
-  async uploadFile(
-    file: globalThis.File,
-    metadata: FileInput
-  ): Promise<File> {
+  async uploadFile(file: globalThis.File, metadata: FileInput): Promise<File> {
     try {
-      console.log("🔵 [uploadFile] Starting upload", { fileName: file.name, fileSize: file.size, userId: this.userId });
+      console.log("🔵 [uploadFile] Starting upload", {
+        fileName: file.name,
+        fileSize: file.size,
+        userId: this.userId,
+      });
 
       const fileId = this.generateId();
       const fileExtension = file.name.split(".").pop() || "";
@@ -867,10 +884,17 @@ export class FirestoreAdapter implements StorageAdapter {
 
       // Remove undefined fields
       const fileData = Object.fromEntries(
-        Object.entries(rawFileData).filter(([_, value]) => value !== undefined)
+        Object.entries(rawFileData).filter(([, value]) => value !== undefined)
       );
 
-      console.log("🔵 [uploadFile] Creating Firestore document...", { fileId, fileData: { ...fileData, createdAt: "serverTimestamp()", updatedAt: "serverTimestamp()" } });
+      console.log("🔵 [uploadFile] Creating Firestore document...", {
+        fileId,
+        fileData: {
+          ...fileData,
+          createdAt: "serverTimestamp()",
+          updatedAt: "serverTimestamp()",
+        },
+      });
 
       const docRef = doc(db, "files", fileId);
       await setDoc(docRef, fileData);
@@ -885,14 +909,18 @@ export class FirestoreAdapter implements StorageAdapter {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      console.log("✅ [uploadFile] Upload complete, returning file object:", result);
+      console.log(
+        "✅ [uploadFile] Upload complete, returning file object:",
+        result
+      );
       return result;
     } catch (error) {
       console.error("❌ [uploadFile] Upload failed:", error);
       console.error("❌ [uploadFile] Error details:", {
         message: error instanceof Error ? error.message : String(error),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         code: (error as any)?.code,
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       throw new Error("Failed to upload file. Please try again.");
     }
@@ -942,9 +970,12 @@ export class FirestoreAdapter implements StorageAdapter {
 
       // Only add fields that are not undefined
       if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
-      if (updates.labelIds !== undefined) updateData.labelIds = updates.labelIds;
-      if (updates.isPinned !== undefined) updateData.isPinned = updates.isPinned;
+      if (updates.folderId !== undefined)
+        updateData.folderId = updates.folderId;
+      if (updates.labelIds !== undefined)
+        updateData.labelIds = updates.labelIds;
+      if (updates.isPinned !== undefined)
+        updateData.isPinned = updates.isPinned;
 
       await updateDoc(docRef, updateData);
 

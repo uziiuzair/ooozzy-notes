@@ -51,10 +51,10 @@ export const NoteCard: FC<NoteCardProps> = ({
     onDragEnd?.();
   };
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    onContextMenu?.(e);
-  };
+  // const handleContextMenu = (e: React.MouseEvent) => {
+  //   e.preventDefault();
+  //   onContextMenu?.(e);
+  // };
 
   return (
     <Card
